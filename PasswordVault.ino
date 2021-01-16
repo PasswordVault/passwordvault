@@ -11,35 +11,101 @@
 
 #include "Keyboard.h"
 
+#include <Seeed_FS.h>
+#include "SD/Seeed_SD.h"
+#define SERIAL Serial
+
 TFT_eSPI tft = TFT_eSPI();
 
 #define UP 1
 #define DOWN 2
 #define SELECT 3
 
-#define SCREEN_SIZE 4
-#define LIST_SIZE 10
+#define SCREEN_SIZE 15
+int list_size;
 
 typedef struct {
-  String passwd;
-  String name;
+  char* passwd;
+  char* name;
 } Entry;
 
-Entry entries[] = {
-  { "Lx1jOf3l", "Amazon" },
-  { "bbbb", "B..." },
-  { "cccc", "C..." },
-  { "dddd", "D..." },
-  { "eeee", "E..." },
-  { "ffff", "F..." },
-  { "gggg", "G..." },
-  { "hhhh", "H..." },
-  { "iiii", "I..." },
-  { "jjjj", "J..." },
-};
+Entry* entries;
 
 int offset = 0;
 int cursor = 0;
+
+int
+countLines(File file, int* line_length) {
+  int i = 0;
+  int l = 0;
+
+  *line_length = 0;
+  
+  while (file.available()) {
+    if (file.read() == '\n') {
+      i++;
+
+      if (l > *line_length) {
+        *line_length = l;
+      }
+      l = 0;
+    }
+    else {
+      l++;
+    }
+  }
+  file.seek(0);
+  return i;
+}
+
+char*
+readField(File file, char* buffer) {
+  char c;
+  int pos = 0;
+  while (file.available() && (c = file.read()) != '\t' && c != '\n') {
+    buffer[pos++] = c;
+  }
+  buffer[pos] = '\0';
+  return buffer;
+}
+
+void
+readLine(File file, Entry* entry, char* buffer) {
+  entry->name = strdup(readField(file, buffer));
+  entry->passwd = strdup(readField(file, buffer));
+}
+
+void 
+readFile(fs::FS& fs, const char* path) {
+  int i = 0;
+  int line_length;
+  
+  SERIAL.print("Reading file: ");
+  SERIAL.println(path);
+  File file = fs.open(path);
+  if (!file) {
+      SERIAL.println("Failed to open file for reading");
+      return;
+  }
+
+  list_size = countLines(file, &line_length);
+  SERIAL.print("Lines: ");
+  SERIAL.println(list_size);
+
+  char buffer[line_length + 1];
+  
+  entries = (Entry*)malloc(sizeof(Entry) * list_size);
+  
+  while (file.available()) {
+    SERIAL.println(i);
+
+    readLine(file, &entries[i], buffer);
+    i++;
+  }
+  file.close();
+
+  SERIAL.println("Done.");
+}
 
 void
 setupJoystick() {
@@ -55,19 +121,36 @@ setup() {
   Serial.begin(115200);
   while(!Serial);
   
-  /*WiFi
-  WiFiManager wifiManager;
-  wifiManager.autoConnect("PasswordVault");
-  Serial.println("Connected :)");
-  Serial.println(WiFi.localIP());
+  tft.init();
+  tft.setRotation(2);
+  
+  setupJoystick();
+      
+  if (!SD.begin(SDCARD_SS_PIN, SDCARD_SPI, 4000000UL)) {
+    SERIAL.println("Card mount failed");
+    return;
+  }
+
+  uint8_t card_type = SD.cardType();
+  if (card_type == CARD_NONE) {
+    SERIAL.println("No SD card attached");
+    return;
+  }
+
+  readFile(SD, "/olav.txt");
+
+  /*
+  SERIAL.print(list_size);
+  SERIAL.println(" Entries");
+  for (int i=0; i<list_size; i++) {
+    SERIAL.print("Entry n=");
+    SERIAL.print(entries[i].name);
+    SERIAL.print(", p=");
+    SERIAL.println(entries[i].passwd);
+  }
   */
   
   Keyboard.begin();
-  
-  tft.init();
-  tft.setRotation(2);
-
-  setupJoystick();
 }
 
 void
@@ -80,7 +163,7 @@ showList(int offset, int cursor) {
   tft.fillScreen(TFT_BLACK);
   tft.setTextSize(2);
 
-  for (int i = 0; offset + i < LIST_SIZE && i < SCREEN_SIZE; i++) {
+  for (int i = 0; offset + i < list_size && i < SCREEN_SIZE; i++) {
     if (i == cursor) {
       tft.setTextColor(TFT_BLACK, TFT_WHITE);
     }
@@ -132,7 +215,7 @@ loop() {
         cursor++;
       }
       else
-      if (offset < LIST_SIZE - SCREEN_SIZE) {
+      if (offset < list_size - SCREEN_SIZE) {
         offset++;
       }
       break;
