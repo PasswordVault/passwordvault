@@ -1,9 +1,6 @@
-
-/*WiFi
-#include <rpcWiFi.h>
-#include <DNSServer.h>
-#include <WebServer.h>
-#include <WiFiManager.h>
+/**
+   PasswordVault - Use a WIO Terminal to type passwords
+   (c) 2021 Olav Schettler <olav@schettler.net>
 */
 
 #include <SPI.h>
@@ -19,9 +16,15 @@ TFT_eSPI tft = TFT_eSPI();
 
 #define UP 1
 #define DOWN 2
-#define SELECT 3
+#define LEFT 3
+#define RIGHT 4
+#define SELECT 5
 
-#define SCREEN_SIZE 15
+#define FILTER 1
+#define LIST 2
+int mode = FILTER;
+
+#define SCREEN_SIZE 14
 int list_size;
 
 typedef struct {
@@ -30,20 +33,36 @@ typedef struct {
 } Entry;
 
 Entry* entries;
+char* buffer;
+
+#define FILTER_SIZE 256
+char filter[FILTER_SIZE];
+#define FILTER_WIDTH 10
+int filter_lines;
+int filter_size = 0;
+int cursor_x = 0, cursor_y = 0;
 
 int offset = 0;
 int cursor = 0;
+int prefix_pos = 0;
 
 int
 countLines(File file, int* line_length) {
   int i = 0;
   int l = 0;
+  int c;
+  int k;
+  int first_field = 1;
+  char filter_tmp[FILTER_SIZE];
 
   *line_length = 0;
-  
+
+  memset(filter_tmp, 0, FILTER_SIZE);
+
   while (file.available()) {
-    if (file.read() == '\n') {
+    if ((c = file.read()) == '\n') {
       i++;
+      first_field = 1;
 
       if (l > *line_length) {
         *line_length = l;
@@ -51,15 +70,34 @@ countLines(File file, int* line_length) {
       l = 0;
     }
     else {
+      if (c == '\t') {
+        first_field = 0;
+      }
+      if (first_field) {
+        filter_tmp[tolower(c)] = 1;
+      }
       l++;
     }
   }
   file.seek(0);
+
+  if (l > *line_length) {
+    *line_length = l;
+  }
+
+  memset(filter, 0, FILTER_SIZE);
+  for (c = 0, k = 0; c < FILTER_SIZE; c++) {
+    if (filter_tmp[c]) {
+      filter[k++] = c;
+    }
+  }
+  filter_size = k;
+
   return i;
 }
 
 char*
-readField(File file, char* buffer) {
+readField(File file) {
   char c;
   int pos = 0;
   while (file.available() && (c = file.read()) != '\t' && c != '\n') {
@@ -70,36 +108,33 @@ readField(File file, char* buffer) {
 }
 
 void
-readLine(File file, Entry* entry, char* buffer) {
-  entry->name = strdup(readField(file, buffer));
-  entry->passwd = strdup(readField(file, buffer));
+readLine(File file, Entry* entry) {
+  entry->name = strdup(readField(file));
+  entry->passwd = strdup(readField(file));
 }
 
-void 
+void
 readFile(fs::FS& fs, const char* path) {
   int i = 0;
   int line_length;
-  
+
   SERIAL.print("Reading file: ");
   SERIAL.println(path);
   File file = fs.open(path);
   if (!file) {
-      SERIAL.println("Failed to open file for reading");
-      return;
+    SERIAL.println("Failed to open file for reading");
+    return;
   }
 
   list_size = countLines(file, &line_length);
   SERIAL.print("Lines: ");
   SERIAL.println(list_size);
 
-  char buffer[line_length + 1];
-  
+  buffer = (char*)malloc(line_length + 1);
   entries = (Entry*)malloc(sizeof(Entry) * list_size);
-  
-  while (file.available()) {
-    SERIAL.println(i);
 
-    readLine(file, &entries[i], buffer);
+  while (file.available()) {
+    readLine(file, &entries[i]);
     i++;
   }
   file.close();
@@ -119,13 +154,13 @@ setupJoystick() {
 void
 setup() {
   Serial.begin(115200);
-  while(!Serial);
-  
+  while (!Serial);
+
   tft.init();
   tft.setRotation(2);
-  
+
   setupJoystick();
-      
+
   if (!SD.begin(SDCARD_SS_PIN, SDCARD_SPI, 4000000UL)) {
     SERIAL.println("Card mount failed");
     return;
@@ -139,23 +174,66 @@ setup() {
 
   readFile(SD, "/olav.txt");
 
-  /*
-  SERIAL.print(list_size);
-  SERIAL.println(" Entries");
-  for (int i=0; i<list_size; i++) {
-    SERIAL.print("Entry n=");
-    SERIAL.print(entries[i].name);
-    SERIAL.print(", p=");
-    SERIAL.println(entries[i].passwd);
-  }
-  */
-  
   Keyboard.begin();
+
+  strcpy(buffer, "");
+}
+
+bool prefix(const char *pre, const char *str) {
+  return strncmp(pre, str, strlen(pre)) == 0;
+}
+
+int
+countEntries() {
+  int count = 0;
+  for (int i = 0; i < list_size; i++) {
+    if (prefix(buffer, entries[i]) {
+      count++;
+    }
+  }
+  return count;
 }
 
 void
-showList(int offset, int cursor) {
-  Serial.print("offset/cursor: ");
+showFilter() {
+  int x = 0, y = 0;
+
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextSize(2);
+
+  tft.drawString(">", 20, 10);
+  tft.drawString(buffer, 40, 10);
+
+  tft.drawFastHLine(0, 30, 240, TFT_WHITE);
+
+  for (int i = 0; i < filter_size; i++) {
+    char c[2] = { filter[i], '\0' };
+    if (x == cursor_x && y == cursor_y) {
+      tft.setTextColor(TFT_BLACK, TFT_WHITE);
+    }
+    else {
+      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    }
+    tft.drawString(c, 20 + x * 20, 50 + y * 20);
+    x++;
+    if (x >= FILTER_WIDTH) {
+      x = 0;
+      y++;
+    }
+  }
+  filter_lines = y;
+
+  tft.drawFastHLine(0, 60 + filter_lines * 20, 240, TFT_WHITE);
+
+  tft.setCursor(80 + filter_lines * 20, 20);
+  tft.print(countEntries());
+  tft.print(" Passworte);
+}
+
+
+void
+showList() {
+  Serial.print("offset / cursor: ");
   Serial.print(offset);
   Serial.print(" ");
   Serial.println(cursor);
@@ -163,14 +241,17 @@ showList(int offset, int cursor) {
   tft.fillScreen(TFT_BLACK);
   tft.setTextSize(2);
 
+  tft.drawString(" > ", 20, 10);
+  tft.drawString(buffer, 30, 10);
+
   for (int i = 0; offset + i < list_size && i < SCREEN_SIZE; i++) {
     if (i == cursor) {
       tft.setTextColor(TFT_BLACK, TFT_WHITE);
     }
     else {
-      tft.setTextColor(TFT_WHITE, TFT_BLACK);  
+      tft.setTextColor(TFT_WHITE, TFT_BLACK);
     }
-    tft.drawString(entries[offset + i].name, 20, 20 * i);
+    tft.drawString(entries[offset + i].name, 20, 20 * i + 30);
   }
 }
 
@@ -179,11 +260,19 @@ checkJoystick() {
   if (digitalRead(WIO_5S_LEFT) == LOW) {
     return UP;
   }
-  else 
+  else
   if (digitalRead(WIO_5S_RIGHT) == LOW) {
     return DOWN;
   }
-  else 
+  else
+  if (digitalRead(WIO_5S_UP) == LOW) {
+    return RIGHT;
+  }
+  else
+  if (digitalRead(WIO_5S_DOWN) == LOW) {
+    return LEFT;
+  }
+  else
   if (digitalRead(WIO_5S_PRESS) == LOW) {
     return SELECT;
   }
@@ -191,9 +280,61 @@ checkJoystick() {
 }
 
 void
-loop() {
+filterCursor() {
+  int i, new_i;
+  int buffer_len;
   int cmd = 0;
-  showList(offset, cursor);
+
+  delay(200);
+  while (!(cmd = checkJoystick())) {
+    delay(100);
+  }
+  switch (cmd) {
+    case LEFT:
+    if (cursor_x > 0) {
+      cursor_x--;
+    }
+    break;
+
+    case RIGHT:
+      new_i = cursor_y * FILTER_WIDTH + cursor_x + 1;
+      if (cursor_x < FILTER_WIDTH - 1 && new_i < filter_size - 1) {
+        cursor_x++;
+      }
+      break;
+
+    case UP:
+      if (cursor_y > 0) {
+        cursor_y--;
+      }
+      break;
+
+    case DOWN:
+      new_i = (cursor_y + 1) * FILTER_WIDTH + cursor_x;
+      if (cursor_y < filter_lines && new_i < filter_size) {
+        cursor_y++;
+      }
+      break;
+
+    case SELECT:
+      i = cursor_y * FILTER_WIDTH + cursor_x;
+      buffer_len = strlen(buffer);
+      buffer[buffer_len] = filter[i];
+      buffer[buffer_len + 1] = '\0';
+      break;
+  }
+  i = cursor_y * FILTER_WIDTH + cursor_x;
+  Serial.print("Filter [");
+  Serial.print(i);
+  Serial.print("] = ");
+  Serial.print(filter[i]);
+  Serial.print(", filter size: ");
+  Serial.println(filter_size);
+}
+
+void
+listCursor() {
+  int cmd = 0;
 
   delay(200);
   while (!(cmd = checkJoystick())) {
@@ -224,5 +365,17 @@ loop() {
       Keyboard.print(entries[offset + cursor].passwd);
       Serial.println(entries[offset + cursor].name);
       break;
+  }
+}
+
+void
+loop() {
+  if (mode == FILTER) {
+    showFilter();
+    filterCursor();
+  }
+  else {
+    showList();
+    listCursor();
   }
 }
