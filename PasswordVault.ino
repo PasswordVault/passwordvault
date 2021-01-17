@@ -159,7 +159,7 @@ setupJoystick() {
 void
 setup() {
   Serial.begin(115200);
-  while (!Serial);
+  //while (!Serial);
 
   tft.init();
   tft.setRotation(2);
