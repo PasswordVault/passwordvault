@@ -35,6 +35,7 @@ There are many commercial password managers. However, they are expensive, have t
 * [Password Vault](https://hackaday.io/project/18763-password-vault) by mwahid manages upt to four passwords 
 * [Hardware password manager](https://hackaday.io/project/5588-hardware-password-manager) by Voja Antonic manages up to eight passwords
 * [CQKey - hardware password keeper](https://hackaday.io/project/11190-cqkey-hardware-password-keeper) has a small display and manages up to 10 passwords
+* [Automated Password Typer](https://create.arduino.cc/projecthub/mPelectronic/automated-password-typer-c19017) based on an ATmega with small screen and rotary switch 
 * [Password Vault by John N Hansen (affiliate link)](https://amzn.to/3sAGlZQ) with small display and full keyboard
 * [Mooltipass](https://www.themooltipass.com/) with small screen and NFC card reader
  
