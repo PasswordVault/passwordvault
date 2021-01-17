@@ -2,6 +2,9 @@
    PasswordVault - Use a WIO Terminal to type passwords
    (c) 2021 Olav Schettler <olav@schettler.net>
 */
+#define CODE_VERSION "v0.2"
+
+#include <xxtea-lib.h>
 
 #include <SPI.h>
 #include <TFT_eSPI.h>
@@ -112,7 +115,7 @@ readField(File file) {
 void
 readLine(File file, Entry* entry) {
   entry->name = strdup(readField(file));
-  entry->passwd = strdup(readField(file));
+  entry->passwd = strdup(xxtea.decrypt(readField(file)).c_str());
 }
 
 void
@@ -161,6 +164,11 @@ setup() {
   Serial.begin(115200);
   //while (!Serial);
 
+  char* PASSWD;
+# include "./env.h"
+
+  ; xxtea.setKey(PASSWD);
+
   tft.init();
   tft.setRotation(2);
 
@@ -177,7 +185,8 @@ setup() {
     return;
   }
 
-  readFile(SD, "/olav.txt");
+  //readFile(SD, "/olav.txt");
+  readFile(SD, "/crypted.txt");
 
   Keyboard.begin();
 
@@ -239,10 +248,11 @@ showFilter() {
 
   tft.setCursor(0, 140 + filter_lines * 20);
   tft.setTextSize(1);
+
   tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.println("(c) 2021 Olav Schettler");
-  tft.println("License & code:");
-  tft.println("github.com/tinkerthon/passwordvault");
+  tft.drawCentreString("PasswordVault " CODE_VERSION, 120, 260, 2);
+  tft.drawCentreString("(c) 2021 Olav Schettler", 120, 280, 1);
+  tft.drawCentreString("github.com/tinkerthon/passwordvault", 120, 290, 1);
 }
 
 
