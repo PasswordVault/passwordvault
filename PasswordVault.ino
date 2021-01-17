@@ -19,13 +19,13 @@ TFT_eSPI tft = TFT_eSPI();
 #define LEFT 3
 #define RIGHT 4
 #define SELECT 5
-
-#define FILTER 1
-#define LIST 2
-int mode = FILTER;
+#define MODE_FILTER 6
+#define MODE_LIST 7
+int mode = MODE_FILTER;
 
 #define SCREEN_SIZE 14
 int list_size;
+int filtered_list_size;
 
 typedef struct {
   char* passwd;
@@ -34,6 +34,8 @@ typedef struct {
 
 Entry* entries;
 char* buffer;
+
+Entry** filtered_entries;
 
 #define FILTER_SIZE 256
 char filter[FILTER_SIZE];
@@ -132,6 +134,7 @@ readFile(fs::FS& fs, const char* path) {
 
   buffer = (char*)malloc(line_length + 1);
   entries = (Entry*)malloc(sizeof(Entry) * list_size);
+  filtered_entries = (Entry**)malloc(sizeof(Entry*) * list_size);
 
   while (file.available()) {
     readLine(file, &entries[i]);
@@ -149,6 +152,8 @@ setupJoystick() {
   pinMode(WIO_5S_LEFT, INPUT_PULLUP);
   pinMode(WIO_5S_RIGHT, INPUT_PULLUP);
   pinMode(WIO_5S_PRESS, INPUT_PULLUP);
+
+  pinMode(WIO_KEY_C, INPUT_PULLUP);
 }
 
 void
@@ -184,11 +189,11 @@ bool prefix(const char *pre, const char *str) {
 }
 
 int
-countEntries() {
+filterEntries() {
   int count = 0;
   for (int i = 0; i < list_size; i++) {
-    if (prefix(buffer, entries[i]) {
-      count++;
+    if (prefix(buffer, entries[i].name)) {
+      filtered_entries[count++] = &entries[i];
     }
   }
   return count;
@@ -223,11 +228,13 @@ showFilter() {
   }
   filter_lines = y;
 
-  tft.drawFastHLine(0, 60 + filter_lines * 20, 240, TFT_WHITE);
+  filtered_list_size = filterEntries();
 
-  tft.setCursor(80 + filter_lines * 20, 20);
-  tft.print(countEntries());
-  tft.print(" Passworte);
+  tft.drawFastHLine(0, 80 + filter_lines * 20, 240, TFT_WHITE);
+
+  tft.setCursor(20, 100 + filter_lines * 20);
+  tft.print(filtered_list_size);
+  tft.print(" Passworte");
 }
 
 
@@ -241,17 +248,19 @@ showList() {
   tft.fillScreen(TFT_BLACK);
   tft.setTextSize(2);
 
-  tft.drawString(" > ", 20, 10);
-  tft.drawString(buffer, 30, 10);
+  tft.drawString("#", 20, 10);
+  tft.drawString(buffer, 40, 10);
 
-  for (int i = 0; offset + i < list_size && i < SCREEN_SIZE; i++) {
+  tft.drawFastHLine(0, 30, 240, TFT_WHITE);
+
+  for (int i = 0; offset + i < filtered_list_size && i < SCREEN_SIZE; i++) {
     if (i == cursor) {
       tft.setTextColor(TFT_BLACK, TFT_WHITE);
     }
     else {
       tft.setTextColor(TFT_WHITE, TFT_BLACK);
     }
-    tft.drawString(entries[offset + i].name, 20, 20 * i + 30);
+    tft.drawString(filtered_entries[offset + i]->name, 20, 50 + 20 * i);
   }
 }
 
@@ -276,6 +285,17 @@ checkJoystick() {
   if (digitalRead(WIO_5S_PRESS) == LOW) {
     return SELECT;
   }
+  else
+  if (digitalRead(WIO_KEY_C) == LOW) {
+    if (mode == MODE_LIST) {
+      buffer[0] = '\0';
+      return MODE_FILTER;
+    }
+    else {
+      return MODE_LIST;
+    }
+  }
+
   return 0;
 }
 
@@ -322,6 +342,13 @@ filterCursor() {
       buffer[buffer_len] = filter[i];
       buffer[buffer_len + 1] = '\0';
       break;
+
+    case MODE_LIST:
+      offset = 0;
+    
+    case MODE_FILTER:
+      mode = cmd;
+      break;
   }
   i = cursor_y * FILTER_WIDTH + cursor_x;
   Serial.print("Filter [");
@@ -365,12 +392,19 @@ listCursor() {
       Keyboard.print(entries[offset + cursor].passwd);
       Serial.println(entries[offset + cursor].name);
       break;
+
+    case MODE_LIST:
+      offset = 0;
+    
+    case MODE_FILTER:
+      mode = cmd;
+      break;
   }
 }
 
 void
 loop() {
-  if (mode == FILTER) {
+  if (mode == MODE_FILTER) {
     showFilter();
     filterCursor();
   }
