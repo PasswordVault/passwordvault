@@ -23,7 +23,7 @@ TFT_eSPI tft = TFT_eSPI();
 #define MODE_LIST 7
 int mode = MODE_FILTER;
 
-#define SCREEN_SIZE 14
+#define SCREEN_SIZE 13
 int list_size;
 int filtered_list_size;
 
@@ -205,6 +205,7 @@ showFilter() {
 
   tft.fillScreen(TFT_BLACK);
   tft.setTextSize(2);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
 
   tft.drawString(">", 20, 10);
   tft.drawString(buffer, 40, 10);
@@ -235,6 +236,13 @@ showFilter() {
   tft.setCursor(20, 100 + filter_lines * 20);
   tft.print(filtered_list_size);
   tft.print(" Passworte");
+
+  tft.setCursor(0, 140 + filter_lines * 20);
+  tft.setTextSize(1);
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.println("(c) 2021 Olav Schettler");
+  tft.println("License & code:");
+  tft.println("github.com/tinkerthon/passwordvault");
 }
 
 
@@ -247,6 +255,7 @@ showList() {
 
   tft.fillScreen(TFT_BLACK);
   tft.setTextSize(2);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
 
   tft.drawString("#", 20, 10);
   tft.drawString(buffer, 40, 10);
@@ -345,6 +354,7 @@ filterCursor() {
 
     case MODE_LIST:
       offset = 0;
+      cursor = 0;
     
     case MODE_FILTER:
       mode = cmd;
@@ -379,18 +389,18 @@ listCursor() {
       break;
 
     case DOWN:
-      if (cursor < SCREEN_SIZE - 1) {
+      if (cursor < min(SCREEN_SIZE - 1, filtered_list_size - 1)) {
         cursor++;
       }
       else
-      if (offset < list_size - SCREEN_SIZE) {
+      if (offset < filtered_list_size - SCREEN_SIZE) {
         offset++;
       }
       break;
 
     case SELECT:
-      Keyboard.print(entries[offset + cursor].passwd);
-      Serial.println(entries[offset + cursor].name);
+      Keyboard.print(filtered_entries[offset + cursor]->passwd);
+      Serial.println(filtered_entries[offset + cursor]->name);
       break;
 
     case MODE_LIST:
