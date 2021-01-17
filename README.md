@@ -1,7 +1,7 @@
 # Password Vault
 
 Have your Wio Terminal type your passwords.
-This scetch for the Seeed Wio Terminal reads a list of passwords from a file "passwd.txt" on the SD card and displays them on the screen of a Wio Terminal. 
+This sketch for the Seeed Wio Terminal reads a list of passwords from a file "passwd.txt" on the SD card and displays them on the screen of a Wio Terminal. 
 
 You can select an entry from the list by filtering and browsing with the 5-way joystick of the Wio Terminal.
 
