@@ -4,7 +4,7 @@ Have your Wio Terminal type your passwords.
 
 ![Type password to log into Amazon](promo/amazon-login.jpg)
 
-This sketch for the Seeed Wio Terminal reads a list of passwords from a file "/olav.txt" on the SD card and displays them on the screen of a Wio Terminal. This is in preparation to manage multiple password files for different users.
+This sketch for the [Seeed Wio Terminal]() reads a list of passwords from a file "/olav.txt" on the SD card and displays them on the screen of a Wio Terminal. This is in preparation to manage multiple password files for different users.
 
 You can select an entry from the list by filtering and browsing with the 5-way joystick of the Wio Terminal.
 
@@ -42,8 +42,9 @@ There is even [a paper notebook (affiliate link)](https://amzn.to/3qnLjHu), spec
 
 Here are [more examples](https://hackaday.io/search?term=password+vault) on Hackaday.
 
+## Why this solution
 
-This PasswordVault is open source, quite usable already and it uses open, powerful hardware. The Wio Terminal by Seeed is inexpensive, has a big screen, 5-way joystick and additional buttons. In even has WiFi and Bluetooth, so there is plenty room for more powerful features in the future.
+This PasswordVault is open source, quite usable already and it uses open, powerful hardware. The [Wio Terminal by Seeed (affiliate link)](https://amzn.to/3sxrIGJ) is inexpensive (about 39€), has a big screen, 5-way joystick and additional buttons. In even has WiFi and Bluetooth, so there is plenty room for more powerful features in the future.
 
 ![Wio Terminal](promo/wioterminal.jpg)
 
