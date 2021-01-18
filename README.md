@@ -4,21 +4,21 @@ Have your Wio Terminal type your passwords.
 
 ![Type password to log into Amazon](promo/amazon-login.jpg)
 
-This sketch for the [Seeed Wio Terminal]() reads a list of passwords from a file "/olav.txt" on the SD card and displays them on the screen of a Wio Terminal. This is in preparation to manage multiple password files for different users.
+This sketch for the [Seeed Wio Terminal (affiliate link)](https://amzn.to/3qARCI7) reads a list ofencrypted passwords from a file "/crypted.txt" on the SD card and displays them on the screen of a Wio Terminal.
 
-You can select an entry from the list by filtering and browsing with the 5-way joystick of the Wio Terminal.
+Once you have unlocked the software by keying in your master passcode, you can select an entry from the list by filtering and browsing with the 5-way joystick of the Wio Terminal. A password entry is selected by pressing the 5-way joystick. 
 
 ![Filtering and browsing](promo/password-filtering.jpg)
 
-Once you have selected an entry by pression the 5-way joystick, the password is typed to your computer by emulating a keyboard.
+The password is then typed to your computer by emulating a keyboard. This works for Windows, macOS, Linux, RaspberryPi and even on iPads. 
 
 You switch between filter and list views by pressing the leftmost button.
 
+The passwords are stored encrypted with the XXTEA algorithm. A simple python script is provided to create a file with encrypted passwords. 
+
 ## How to prepare the password file
 
-I use https://www.passwordstore.org/ to manage my passwords. There is a simple Python script to export these passwords into a file that PasswordVault can read. 
-
-ATTENTION: Currently, this file contains your passwords in cleartext. Do not keep this file lying around!
+I use https://www.passwordstore.org/ to manage my passwords. There is a simple Python script `passwords.py` to export these passwords into a file that PasswordVault can read. 
 
 To export your passwords, first install the dependencies into a virtual Python environment, then simply run it:
 
@@ -26,8 +26,24 @@ To export your passwords, first install the dependencies into a virtual Python e
 python3 -m venv env
 source env/bin/activate
 pip install -r requirements.txt
-python3 passwords.py > olav.txt
+python3 passwords.py > passwd
 ````
+
+ATTENTION: At this point, the passwords are stored in clear text. Don't leave the file `passwd` lying around.
+
+The next step is to encrypt the passwords. For this, you need a file with a master password. As this is also used to unlock the device, you can only use up to eight numbers as master password. Copy file env.example to a file named `.env` and set a passwords from up to eight digits. 
+
+Now, run the encrypter:
+
+````
+python3 encrypt.py
+````
+
+Copy the resulting file `crypted` to an SD card (formatted as FAT-16), as `crypted.txt`.
+
+Once you connect the Wio Terminal to a computer, you are greeted with a lock screen. Key in your master password and confirm with `>`.
+
+![Lock screen](promo/lock-screen.jpg)
 ## Other options
 
 There are many commercial password managers. However, they are expensive, have tiny screens and too few buttons to be comfortably usable. Here are some examples:
@@ -45,7 +61,7 @@ Here are [more examples](https://hackaday.io/search?term=password+vault) on Hack
 
 ## Why this solution
 
-This PasswordVault is open source, quite usable already and it uses open, powerful hardware. The [Wio Terminal by Seeed (affiliate link)](https://amzn.to/3sxrIGJ) is inexpensive (about 39€), has a big screen, 5-way joystick and additional buttons. In even has WiFi and Bluetooth, so there is plenty room for more powerful features in the future.
+This PasswordVault is open source and uses open, powerful hardware. The [Wio Terminal by Seeed (affiliate link)](https://amzn.to/3sxrIGJ) is inexpensive (about 39€), has a big screen, 5-way joystick and additional buttons. In even has WiFi and Bluetooth, so there is plenty room for more powerful features in the future.
 
 ![Wio Terminal](promo/wioterminal.jpg)
 
