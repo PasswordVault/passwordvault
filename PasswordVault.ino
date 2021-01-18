@@ -2,7 +2,7 @@
    PasswordVault - Use a WIO Terminal to type passwords
    (c) 2021 Olav Schettler <olav@schettler.net>
 */
-#define CODE_VERSION "v0.2"
+#define CODE_VERSION "v1.0"
 
 #include <xxtea-lib.h>
 
@@ -228,6 +228,17 @@ filterEntries() {
 
 
 void
+about() {
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.drawCentreString("PasswordVault", 120, 220, 2);
+  tft.setTextSize(1);
+  tft.drawCentreString(CODE_VERSION, 120, 260, 1);
+  tft.drawCentreString("(c) 2021 Olav Schettler", 120, 276, 1);
+  tft.drawCentreString("info@passwordvault.de", 120, 292, 1);  
+}
+
+
+void
 showLock() {
   int x = 0, y = 0;
 
@@ -259,13 +270,7 @@ showLock() {
   tft.drawFastHLine(0, 150, 240, TFT_WHITE);
   tft.drawCentreString("Please unlock", 120, 160, 1);
   
-  
-  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.drawCentreString("PasswordVault", 120, 220, 2);
-  tft.setTextSize(1);
-  tft.drawCentreString(CODE_VERSION, 120, 260, 1);
-  tft.drawCentreString("(c) 2021 Olav Schettler", 120, 276, 1);
-  tft.drawCentreString("info@passwordvault.de", 120, 292, 1);  
+  about();
 }
 
 
@@ -305,7 +310,9 @@ showFilter() {
 
   tft.setCursor(20, 100 + filter_lines * 20);
   tft.print(filtered_list_size);
-  tft.print(" Passwords");
+  tft.print(" passwords");
+
+  about();
 }
 
 

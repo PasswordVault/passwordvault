@@ -4,7 +4,7 @@ Have your Wio Terminal type your passwords.
 
 ![Type password to log into Amazon](promo/amazon-login.jpg)
 
-This sketch for the [Seeed Wio Terminal (affiliate link)](https://amzn.to/3qARCI7) reads a list ofencrypted passwords from a file "/crypted.txt" on the SD card and displays them on the screen of a Wio Terminal.
+This sketch for the [Seeed Wio Terminal (affiliate link)](https://amzn.to/3qARCI7) reads a list of encrypted passwords from a file "/crypted.txt" on the SD card and displays them on the screen of a Wio Terminal.
 
 Once you have unlocked the software by keying in your master passcode, you can select an entry from the list by filtering and browsing with the 5-way joystick of the Wio Terminal. A password entry is selected by pressing the 5-way joystick. 
 
