@@ -17,6 +17,8 @@
 
 TFT_eSPI tft = TFT_eSPI();
 
+char* PASSWD;
+
 #define UP 1
 #define DOWN 2
 #define LEFT 3
@@ -24,7 +26,10 @@ TFT_eSPI tft = TFT_eSPI();
 #define SELECT 5
 #define MODE_FILTER 6
 #define MODE_LIST 7
-int mode = MODE_FILTER;
+#define MODE_LOCK 8
+int mode = MODE_LOCK;
+
+bool locked = true;
 
 #define SCREEN_SIZE 13
 int list_size;
@@ -45,11 +50,16 @@ char filter[FILTER_SIZE];
 #define FILTER_WIDTH 10
 int filter_lines;
 int filter_size = 0;
+
+char lock[] = "123456789<0>";
+#define LOCK_WIDTH 3
+
 int cursor_x = 0, cursor_y = 0;
 
 int offset = 0;
 int cursor = 0;
 int prefix_pos = 0;
+
 
 int
 countLines(File file, int* line_length) {
@@ -101,6 +111,7 @@ countLines(File file, int* line_length) {
   return i;
 }
 
+
 char*
 readField(File file) {
   char c;
@@ -112,11 +123,13 @@ readField(File file) {
   return buffer;
 }
 
+
 void
 readLine(File file, Entry* entry) {
   entry->name = strdup(readField(file));
   entry->passwd = strdup(xxtea.decrypt(readField(file)).c_str());
 }
+
 
 void
 readFile(fs::FS& fs, const char* path) {
@@ -148,6 +161,7 @@ readFile(fs::FS& fs, const char* path) {
   SERIAL.println("Done.");
 }
 
+
 void
 setupJoystick() {
   pinMode(WIO_5S_UP, INPUT_PULLUP);
@@ -159,15 +173,16 @@ setupJoystick() {
   pinMode(WIO_KEY_C, INPUT_PULLUP);
 }
 
+
 void
 setup() {
   Serial.begin(115200);
   //while (!Serial);
 
-  char* PASSWD;
 # include "./env.h"
+  ; 
 
-  ; xxtea.setKey(PASSWD);
+  xxtea.setKey(PASSWD);
 
   tft.init();
   tft.setRotation(2);
@@ -193,9 +208,12 @@ setup() {
   strcpy(buffer, "");
 }
 
-bool prefix(const char *pre, const char *str) {
+
+bool 
+prefix(const char *pre, const char *str) {
   return strncmp(pre, str, strlen(pre)) == 0;
 }
+
 
 int
 filterEntries() {
@@ -207,6 +225,49 @@ filterEntries() {
   }
   return count;
 }
+
+
+void
+showLock() {
+  int x = 0, y = 0;
+
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextSize(2);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+
+  tft.drawString(">", 20, 10);
+  tft.drawString(buffer, 40, 10);
+
+  tft.drawFastHLine(0, 30, 240, TFT_WHITE);
+
+  for (int i = 0; i < sizeof(lock); i++) {
+    char c[2] = { lock[i], '\0' };
+    if (x == cursor_x && y == cursor_y) {
+      tft.setTextColor(TFT_BLACK, TFT_WHITE);
+    }
+    else {
+      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    }
+    tft.drawString(c, 90 + x * 20, 50 + y * 20);
+    x++;
+    if (x >= LOCK_WIDTH) {
+      x = 0;
+      y++;
+    }
+  }
+
+  tft.drawFastHLine(0, 150, 240, TFT_WHITE);
+  tft.drawCentreString("Please unlock", 120, 160, 1);
+  
+  
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.drawCentreString("PasswordVault", 120, 220, 2);
+  tft.setTextSize(1);
+  tft.drawCentreString(CODE_VERSION, 120, 260, 1);
+  tft.drawCentreString("(c) 2021 Olav Schettler", 120, 276, 1);
+  tft.drawCentreString("info@passwordvault.de", 120, 292, 1);  
+}
+
 
 void
 showFilter() {
@@ -244,15 +305,7 @@ showFilter() {
 
   tft.setCursor(20, 100 + filter_lines * 20);
   tft.print(filtered_list_size);
-  tft.print(" Passworte");
-
-  tft.setCursor(0, 140 + filter_lines * 20);
-  tft.setTextSize(1);
-
-  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.drawCentreString("PasswordVault " CODE_VERSION, 120, 260, 2);
-  tft.drawCentreString("(c) 2021 Olav Schettler", 120, 280, 1);
-  tft.drawCentreString("github.com/tinkerthon/passwordvault", 120, 290, 1);
+  tft.print(" Passwords");
 }
 
 
@@ -282,6 +335,7 @@ showList() {
     tft.drawString(filtered_entries[offset + i]->name, 20, 50 + 20 * i);
   }
 }
+
 
 int
 checkJoystick() {
@@ -318,6 +372,76 @@ checkJoystick() {
   return 0;
 }
 
+
+void
+lockCursor() {
+  int i;
+  int buffer_len;
+  int cmd = 0;
+
+  delay(200);
+  while (!(cmd = checkJoystick())) {
+    delay(100);
+  }
+  switch (cmd) {
+    case LEFT:
+      if (cursor_x > 0) {
+        cursor_x--;
+      }
+      break;
+
+    case RIGHT:
+      if (cursor_x < LOCK_WIDTH - 1) {
+        cursor_x++;
+      }
+      break;
+
+    case UP:
+      if (cursor_y > 0) {
+        cursor_y--;
+      }
+      break;
+
+    case DOWN:
+      if (cursor_y < sizeof(lock) / LOCK_WIDTH) {
+        cursor_y++;
+      }
+      break;
+
+    case SELECT:
+      i = cursor_y * LOCK_WIDTH + cursor_x;
+      buffer_len = strlen(buffer);
+      switch (lock[i]) {
+        case '<':
+          if (buffer_len > 0) {
+            buffer[buffer_len - 1] = '\0';
+          }
+          break;
+
+        case '>':
+          if (0 == strcmp(PASSWD, buffer)) {
+            Serial.println("Unlocked :)");
+            mode = MODE_FILTER;
+            buffer[0] = '\0';
+            cursor_x = 0;
+            cursor_y = 0;
+          }
+          else {
+            buffer[0] = '\0';
+          }
+          break;
+
+        default:
+          if (buffer_len > 7) {
+            break;
+          }
+          buffer[buffer_len] = lock[i];
+          buffer[buffer_len + 1] = '\0';
+      }
+      break;
+  }
+}
+
 void
 filterCursor() {
   int i, new_i;
@@ -330,10 +454,10 @@ filterCursor() {
   }
   switch (cmd) {
     case LEFT:
-    if (cursor_x > 0) {
-      cursor_x--;
-    }
-    break;
+      if (cursor_x > 0) {
+        cursor_x--;
+      }
+      break;
 
     case RIGHT:
       new_i = cursor_y * FILTER_WIDTH + cursor_x + 1;
@@ -424,12 +548,20 @@ listCursor() {
 
 void
 loop() {
-  if (mode == MODE_FILTER) {
-    showFilter();
-    filterCursor();
-  }
-  else {
-    showList();
-    listCursor();
+  switch (mode) {
+    case MODE_FILTER:    
+      showFilter();
+      filterCursor();
+      break;
+
+    case MODE_LIST:
+      showList();
+      listCursor();
+      break;
+
+    case MODE_LOCK:
+      showLock();
+      lockCursor();
+      break;
   }
 }
