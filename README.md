@@ -41,6 +41,8 @@ python3 encrypt.py
 
 Copy the resulting file `crypted` to an SD card (formatted as FAT-16), as `crypted.txt`.
 
+In case your are not using `pass`, there now is [an example](https://github.com/tinkerthon/passwordvault/issues/1#issuecomment-762665404) on how to manually create a password file and encrypt it. 
+
 Once you connect the Wio Terminal to a computer, you are greeted with a lock screen. Key in your master password and confirm with `>`.
 
 ![Lock screen](promo/lock-screen.jpg)
