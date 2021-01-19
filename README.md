@@ -41,9 +41,12 @@ python3 encrypt.py
 
 Copy the resulting file `crypted` to an SD card (formatted as FAT-16), as `crypted.txt`.
 
+In case your are not using `pass`, there now is [an example](https://github.com/tinkerthon/passwordvault/issues/1#issuecomment-762665404) on how to manually create a password file and encrypt it. 
+
 Once you connect the Wio Terminal to a computer, you are greeted with a lock screen. Key in your master password and confirm with `>`.
 
 ![Lock screen](promo/lock-screen.jpg)
+
 ## Other options
 
 There are many commercial password managers. However, they are expensive, have tiny screens and too few buttons to be comfortably usable. Here are some examples:
@@ -65,6 +68,8 @@ This PasswordVault is open source and uses open, powerful hardware. The [Wio Ter
 
 ![Wio Terminal](promo/wioterminal.jpg)
 
-ATTENTION: At the moment, the passwords are expected to be in clear text. This is of course highly insecure. If you insist on using this software in its current state, please make sure that nobody has access to the SD card containing the password file. 
+## What's planned for the future
+
+We are planning the next release [on Github](https://github.com/tinkerthon/passwordvault/projects/1)
 
 LICENSE: GNU GENERAL PUBLIC LICENSE, Version 3
