@@ -2,7 +2,7 @@
    PasswordVault - Use a WIO Terminal to type passwords
    (c) 2021 Olav Schettler <olav@schettler.net>
 */
-#define CODE_VERSION "v1.0"
+#define CODE_VERSION "v1.1"
 
 #include <xxtea-lib.h>
 
@@ -16,6 +16,7 @@
 #define SERIAL Serial
 
 TFT_eSPI tft = TFT_eSPI();
+TFT_eSprite display = TFT_eSprite(&tft);
 
 char* PASSWD;
 
@@ -186,6 +187,12 @@ setup() {
 
   tft.init();
   tft.setRotation(2);
+  tft.fillScreen(TFT_BLACK);
+
+  display.setColorDepth(1);
+  display.createSprite(240, 320);
+  //display.setRotation(2);
+  display.fillSprite(TFT_BLACK);
 
   setupJoystick();
 
@@ -229,12 +236,12 @@ filterEntries() {
 
 void
 about() {
-  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.drawCentreString("PasswordVault", 120, 220, 2);
-  tft.setTextSize(1);
-  tft.drawCentreString(CODE_VERSION, 120, 260, 1);
-  tft.drawCentreString("(c) 2021 Olav Schettler", 120, 276, 1);
-  tft.drawCentreString("info@passwordvault.de", 120, 292, 1);  
+  display.setTextColor(TFT_YELLOW, TFT_BLACK);
+  display.drawCentreString("PasswordVault", 120, 220, 2);
+  display.setTextSize(1);
+  display.drawCentreString(CODE_VERSION, 120, 260, 1);
+  display.drawCentreString("(c) 2021 Olav Schettler", 120, 276, 1);
+  display.drawCentreString("info@passwordvault.de", 120, 292, 1);  
 }
 
 
@@ -242,24 +249,24 @@ void
 showLock() {
   int x = 0, y = 0;
 
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  display.fillScreen(TFT_BLACK);
+  display.setTextSize(2);
+  display.setTextColor(TFT_WHITE, TFT_BLACK);
 
-  tft.drawString(">", 20, 10);
-  tft.drawString(buffer, 40, 10);
+  display.drawString(">", 20, 10);
+  display.drawString(buffer, 40, 10);
 
-  tft.drawFastHLine(0, 30, 240, TFT_WHITE);
+  display.drawFastHLine(0, 30, 240, TFT_WHITE);
 
   for (int i = 0; i < sizeof(lock); i++) {
     char c[2] = { lock[i], '\0' };
     if (x == cursor_x && y == cursor_y) {
-      tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      display.setTextColor(TFT_BLACK, TFT_WHITE);
     }
     else {
-      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+      display.setTextColor(TFT_WHITE, TFT_BLACK);
     }
-    tft.drawString(c, 90 + x * 20, 50 + y * 20);
+    display.drawString(c, 90 + x * 20, 50 + y * 20);
     x++;
     if (x >= LOCK_WIDTH) {
       x = 0;
@@ -267,10 +274,12 @@ showLock() {
     }
   }
 
-  tft.drawFastHLine(0, 150, 240, TFT_WHITE);
-  tft.drawCentreString("Please unlock", 120, 160, 1);
+  display.drawFastHLine(0, 150, 240, TFT_WHITE);
+  display.drawCentreString("Please unlock", 120, 160, 1);
   
   about();
+
+  display.pushSprite(0, 0);
 }
 
 
@@ -278,24 +287,24 @@ void
 showFilter() {
   int x = 0, y = 0;
 
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  display.fillScreen(TFT_BLACK);
+  display.setTextSize(2);
+  display.setTextColor(TFT_WHITE, TFT_BLACK);
 
-  tft.drawString(">", 20, 10);
-  tft.drawString(buffer, 40, 10);
+  display.drawString(">", 20, 10);
+  display.drawString(buffer, 40, 10);
 
-  tft.drawFastHLine(0, 30, 240, TFT_WHITE);
+  display.drawFastHLine(0, 30, 240, TFT_WHITE);
 
   for (int i = 0; i < filter_size; i++) {
     char c[2] = { filter[i], '\0' };
     if (x == cursor_x && y == cursor_y) {
-      tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      display.setTextColor(TFT_BLACK, TFT_WHITE);
     }
     else {
-      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+      display.setTextColor(TFT_WHITE, TFT_BLACK);
     }
-    tft.drawString(c, 20 + x * 20, 50 + y * 20);
+    display.drawString(c, 20 + x * 20, 50 + y * 20);
     x++;
     if (x >= FILTER_WIDTH) {
       x = 0;
@@ -306,13 +315,15 @@ showFilter() {
 
   filtered_list_size = filterEntries();
 
-  tft.drawFastHLine(0, 80 + filter_lines * 20, 240, TFT_WHITE);
+  display.drawFastHLine(0, 80 + filter_lines * 20, 240, TFT_WHITE);
 
-  tft.setCursor(20, 100 + filter_lines * 20);
-  tft.print(filtered_list_size);
-  tft.print(" passwords");
+  display.setCursor(20, 100 + filter_lines * 20);
+  display.print(filtered_list_size);
+  display.print(" passwords");
 
   about();
+
+  display.pushSprite(0, 0);
 }
 
 
@@ -323,24 +334,26 @@ showList() {
   Serial.print(" ");
   Serial.println(cursor);
 
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  display.fillScreen(TFT_BLACK);
+  display.setTextSize(2);
+  display.setTextColor(TFT_WHITE, TFT_BLACK);
 
-  tft.drawString("#", 20, 10);
-  tft.drawString(buffer, 40, 10);
+  display.drawString("#", 20, 10);
+  display.drawString(buffer, 40, 10);
 
-  tft.drawFastHLine(0, 30, 240, TFT_WHITE);
+  display.drawFastHLine(0, 30, 240, TFT_WHITE);
 
   for (int i = 0; offset + i < filtered_list_size && i < SCREEN_SIZE; i++) {
     if (i == cursor) {
-      tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      display.setTextColor(TFT_BLACK, TFT_WHITE);
     }
     else {
-      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+      display.setTextColor(TFT_WHITE, TFT_BLACK);
     }
-    tft.drawString(filtered_entries[offset + i]->name, 20, 50 + 20 * i);
+    display.drawString(filtered_entries[offset + i]->name, 20, 50 + 20 * i);
   }
+
+  display.pushSprite(0, 0);
 }
 
 
@@ -386,9 +399,9 @@ lockCursor() {
   int buffer_len;
   int cmd = 0;
 
-  delay(200);
+  delay(100);
   while (!(cmd = checkJoystick())) {
-    delay(100);
+    delay(50);
   }
   switch (cmd) {
     case LEFT:
@@ -455,9 +468,9 @@ filterCursor() {
   int buffer_len;
   int cmd = 0;
 
-  delay(200);
+  delay(100);
   while (!(cmd = checkJoystick())) {
-    delay(100);
+    delay(50);
   }
   switch (cmd) {
     case LEFT:
@@ -514,9 +527,9 @@ void
 listCursor() {
   int cmd = 0;
 
-  delay(200);
+  delay(100);
   while (!(cmd = checkJoystick())) {
-    delay(100);
+    delay(50);
   }
   switch (cmd) {
     case UP:
