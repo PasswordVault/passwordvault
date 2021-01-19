@@ -17,6 +17,7 @@
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite display = TFT_eSprite(&tft);
+TFT_eSprite overlay = TFT_eSprite(&tft);
 
 char* PASSWD;
 
@@ -191,8 +192,11 @@ setup() {
 
   display.setColorDepth(1);
   display.createSprite(240, 320);
-  //display.setRotation(2);
   display.fillSprite(TFT_BLACK);
+
+  overlay.setColorDepth(1);
+  overlay.createSprite(240, 100);
+  overlay.fillSprite(TFT_BLACK);
 
   setupJoystick();
 
@@ -236,12 +240,16 @@ filterEntries() {
 
 void
 about() {
-  display.setTextColor(TFT_YELLOW, TFT_BLACK);
-  display.drawCentreString("PasswordVault", 120, 220, 2);
-  display.setTextSize(1);
-  display.drawCentreString(CODE_VERSION, 120, 260, 1);
-  display.drawCentreString("(c) 2021 Olav Schettler", 120, 276, 1);
-  display.drawCentreString("info@passwordvault.de", 120, 292, 1);  
+  overlay.setTextColor(TFT_WHITE, TFT_BLACK);
+  overlay.setTextSize(2);
+  overlay.drawCentreString("PasswordVault", 120, 0, 2);
+  overlay.setTextSize(1);
+  overlay.drawCentreString(CODE_VERSION, 120, 40, 1);
+  overlay.drawCentreString("(c) 2021 Olav Schettler", 120, 56, 1);
+  overlay.drawCentreString("info@passwordvault.de", 120, 72, 1);  
+
+  tft.setBitmapColor(TFT_YELLOW, TFT_BLACK);
+  overlay.pushSprite(0, 220);
 }
 
 
@@ -276,10 +284,11 @@ showLock() {
 
   display.drawFastHLine(0, 150, 240, TFT_WHITE);
   display.drawCentreString("Please unlock", 120, 160, 1);
-  
-  about();
 
+  tft.setBitmapColor(TFT_WHITE, TFT_BLACK);
   display.pushSprite(0, 0);
+
+  about();
 }
 
 
@@ -321,9 +330,10 @@ showFilter() {
   display.print(filtered_list_size);
   display.print(" passwords");
 
-  about();
-
+  tft.setBitmapColor(TFT_WHITE, TFT_BLACK);
   display.pushSprite(0, 0);
+
+  about();
 }
 
 
@@ -353,6 +363,7 @@ showList() {
     display.drawString(filtered_entries[offset + i]->name, 20, 50 + 20 * i);
   }
 
+  tft.setBitmapColor(TFT_WHITE, TFT_BLACK);
   display.pushSprite(0, 0);
 }
 
