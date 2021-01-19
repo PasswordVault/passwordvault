@@ -1,3 +1,4 @@
 passwd
 crypted
 env
+.env
