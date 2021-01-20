@@ -2,7 +2,7 @@
    PasswordVault - Use a WIO Terminal to type passwords
    (c) 2021 Olav Schettler <olav@schettler.net>
 */
-#define CODE_VERSION "v1.1"
+#define CODE_VERSION "v1.2"
 
 #include <xxtea-lib.h>
 
@@ -17,7 +17,6 @@
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite display = TFT_eSprite(&tft);
-TFT_eSprite overlay = TFT_eSprite(&tft);
 
 char* PASSWD;
 
@@ -190,13 +189,9 @@ setup() {
   tft.setRotation(2);
   tft.fillScreen(TFT_BLACK);
 
-  display.setColorDepth(1);
+  display.setColorDepth(8);
   display.createSprite(240, 320);
   display.fillSprite(TFT_BLACK);
-
-  overlay.setColorDepth(1);
-  overlay.createSprite(240, 100);
-  overlay.fillSprite(TFT_BLACK);
 
   setupJoystick();
 
@@ -211,7 +206,6 @@ setup() {
     return;
   }
 
-  //readFile(SD, "/olav.txt");
   readFile(SD, "/crypted.txt");
 
   Keyboard.begin();
@@ -240,16 +234,14 @@ filterEntries() {
 
 void
 about() {
-  overlay.setTextColor(TFT_WHITE, TFT_BLACK);
-  overlay.setTextSize(2);
-  overlay.drawCentreString("PasswordVault", 120, 0, 2);
-  overlay.setTextSize(1);
-  overlay.drawCentreString(CODE_VERSION, 120, 40, 1);
-  overlay.drawCentreString("(c) 2021 Olav Schettler", 120, 56, 1);
-  overlay.drawCentreString("info@passwordvault.de", 120, 72, 1);  
-
-  tft.setBitmapColor(TFT_YELLOW, TFT_BLACK);
-  overlay.pushSprite(0, 220);
+  const int OVERLAY_Y = 220;
+  display.setTextColor(TFT_YELLOW, TFT_BLACK);
+  display.setTextSize(2);
+  display.drawCentreString("PasswordVault", 120, OVERLAY_Y, 2);
+  display.setTextSize(1);
+  display.drawCentreString(CODE_VERSION, 120, OVERLAY_Y + 40, 1);
+  display.drawCentreString("(c) 2021 Olav Schettler", 120, OVERLAY_Y + 56, 1);
+  display.drawCentreString("info@passwordvault.de", 120, OVERLAY_Y + 72, 1);  
 }
 
 
@@ -285,10 +277,9 @@ showLock() {
   display.drawFastHLine(0, 150, 240, TFT_WHITE);
   display.drawCentreString("Please unlock", 120, 160, 1);
 
-  tft.setBitmapColor(TFT_WHITE, TFT_BLACK);
-  display.pushSprite(0, 0);
-
   about();
+
+  display.pushSprite(0, 0);
 }
 
 
@@ -330,10 +321,9 @@ showFilter() {
   display.print(filtered_list_size);
   display.print(" passwords");
 
-  tft.setBitmapColor(TFT_WHITE, TFT_BLACK);
-  display.pushSprite(0, 0);
-
   about();
+
+  display.pushSprite(0, 0);
 }
 
 
@@ -410,9 +400,9 @@ lockCursor() {
   int buffer_len;
   int cmd = 0;
 
-  delay(100);
+  delay(150);
   while (!(cmd = checkJoystick())) {
-    delay(50);
+    delay(100);
   }
   switch (cmd) {
     case LEFT:
@@ -434,7 +424,7 @@ lockCursor() {
       break;
 
     case DOWN:
-      if (cursor_y < sizeof(lock) / LOCK_WIDTH) {
+      if (cursor_y < sizeof(lock) / LOCK_WIDTH - 1) {
         cursor_y++;
       }
       break;
@@ -479,9 +469,9 @@ filterCursor() {
   int buffer_len;
   int cmd = 0;
 
-  delay(100);
+  delay(150);
   while (!(cmd = checkJoystick())) {
-    delay(50);
+    delay(100);
   }
   switch (cmd) {
     case LEFT:
@@ -538,9 +528,9 @@ void
 listCursor() {
   int cmd = 0;
 
-  delay(100);
+  delay(150);
   while (!(cmd = checkJoystick())) {
-    delay(50);
+    delay(100);
   }
   switch (cmd) {
     case UP:
