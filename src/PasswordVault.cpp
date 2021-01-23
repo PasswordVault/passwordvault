@@ -273,6 +273,7 @@ setup() {
   Serial.println(CODE_VERSION);
 
   readFile(SD, "/crypted.txt");
+  readFav(SD, "/fav.txt");
   buffer[0] = '\0';
 }
 
@@ -521,8 +522,6 @@ lockCursor() {
             buffer[0] = '\0';
             cursor_x = 0;
             cursor_y = 0;
-            readFav(SD, "/fav.txt");
-            buffer[0] = '\0';
           }
           else {
             buffer[0] = '\0';
