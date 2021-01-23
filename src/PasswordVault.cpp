@@ -4,7 +4,7 @@
 */
 #include <Arduino.h> // for platformio
 
-#define CODE_VERSION "v1.4"
+#define CODE_VERSION "v1.5"
 
 #include <xxtea-lib.h>
 
@@ -280,7 +280,7 @@ setup() {
 
 bool 
 prefix(const char *pre, const char *str) {
-  return strncmp(pre, str, strlen(pre)) == 0;
+  return strncasecmp(pre, str, strlen(pre)) == 0;
 }
 
 
