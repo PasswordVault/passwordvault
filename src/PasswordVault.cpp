@@ -4,7 +4,7 @@
 */
 #include <Arduino.h> // for platformio
 
-#define CODE_VERSION "v1.5"
+#define CODE_VERSION "v1.6"
 
 #include <xxtea-lib.h>
 
@@ -21,7 +21,8 @@ TFT_eSprite display = TFT_eSprite(&tft);
 
 const char* PASSWD;
 
-char* strdup();
+int strncasecmp(const char*, const char*, int);
+char* strdup(const char*);
 
 #define UP 1
 #define DOWN 2
@@ -32,6 +33,7 @@ char* strdup();
 #define MODE_LIST 7
 #define MODE_LOCK 8
 #define MODE_FAV 9
+#define MODE_DETAIL 10
 int mode = MODE_LOCK;
 
 #define SCREEN_SIZE 13
@@ -49,6 +51,7 @@ char* buffer;
 
 Entry** filtered_entries;
 Entry** fav_entries;
+Entry* current_entry;
 
 #define FILTER_SIZE 256
 char filter[FILTER_SIZE];
@@ -421,7 +424,7 @@ showList() {
 
 
 int
-checkJoystick() {
+checkButtons() {
   if (digitalRead(WIO_5S_LEFT) == LOW) {
     return UP;
   }
@@ -461,6 +464,9 @@ checkJoystick() {
       
       case MODE_FAV:
         return MODE_LIST;
+      
+      case MODE_DETAIL:
+        return MODE_LIST;
     }
     Serial.print("mode: ");
     Serial.println(mode);
@@ -470,16 +476,24 @@ checkJoystick() {
 }
 
 
+int
+getButtons() {
+  int cmd = 0;
+  do {
+    delay(100);
+  }
+  while (!(cmd = checkButtons()));
+
+  return cmd;
+}
+
+
 void
 lockCursor() {
   int i;
   int buffer_len;
-  int cmd = 0;
+  int cmd = getButtons();
 
-  delay(150);
-  while (!(cmd = checkJoystick())) {
-    delay(100);
-  }
   switch (cmd) {
     case LEFT:
       if (cursor_x > 0) {
@@ -543,12 +557,8 @@ void
 filterCursor() {
   unsigned int i, new_i;
   unsigned int buffer_len;
-  int cmd = 0;
+  int cmd = getButtons();
 
-  delay(150);
-  while (!(cmd = checkJoystick())) {
-    delay(100);
-  }
   switch (cmd) {
     case LEFT:
       if (cursor_x > 0) {
@@ -598,6 +608,7 @@ filterCursor() {
   Serial.println(filter_size);
 }
 
+
 void
 typeAndFavEntry(Entry* entry) {
   unsigned int i;
@@ -633,12 +644,8 @@ typeAndFavEntry(Entry* entry) {
 
 void
 listCursor() {
-  int cmd = 0;
+  int cmd = getButtons();
 
-  delay(150);
-  while (!(cmd = checkJoystick())) {
-    delay(100);
-  }
   switch (cmd) {
     case UP:
       if (cursor > 0) {
@@ -662,6 +669,8 @@ listCursor() {
 
     case SELECT:
       typeAndFavEntry(filtered_entries[offset + cursor]);
+      mode = MODE_DETAIL;
+      current_entry = filtered_entries[offset + cursor];
       break;
 
     case MODE_FAV:
@@ -683,7 +692,8 @@ class FavController {
       this->list_size = list_size;
     }
 
-    void show() {
+    void
+    show() {
       Serial.print("Fav offset=");
       Serial.print(offset);
       Serial.print(" cursor=");
@@ -721,13 +731,9 @@ class FavController {
       display.pushSprite(0, 0);
     }
 
-    void update() {
-      int cmd = 0;
-
-      do {
-        delay(100);
-      }
-      while (!(cmd = checkJoystick()));
+    void
+    update() {
+      int cmd = getButtons();
 
       switch (cmd) {
         case UP:
@@ -752,6 +758,8 @@ class FavController {
 
         case SELECT:
           typeAndFavEntry(this->entries[offset + cursor]);
+          mode = MODE_DETAIL;
+          current_entry = this->entries[offset + cursor];
           offset = 0;
           cursor = 0;
           break;
@@ -764,6 +772,40 @@ class FavController {
       }
     }
 };
+
+
+class DetailController {
+  public:
+    void
+    show() {
+      display.fillScreen(TFT_BLACK);
+      display.setTextSize(2);
+      display.setTextColor(TFT_WHITE, TFT_BLACK);
+
+      display.drawString(":", 20, 10);
+      display.drawString(current_entry->name, 40, 10);
+
+      display.drawFastHLine(0, 30, 240, TFT_WHITE);
+
+      display.drawString(current_entry->passwd, 20, 50);
+
+      display.pushSprite(0, 0);
+    }
+
+    void
+    update() {
+      int cmd = getButtons();
+
+      switch (cmd) {
+        case MODE_FAV:
+        case MODE_LIST:
+        case MODE_FILTER:
+          mode = cmd;
+          break;
+      }
+    }
+};
+
 
 void
 loop() {
@@ -789,5 +831,12 @@ loop() {
       showLock();
       lockCursor();
       break;
+    
+    case MODE_DETAIL: {
+      DetailController ctl = DetailController();
+      ctl.show();
+      ctl.update();
+      break;
+    }
   }
 }
