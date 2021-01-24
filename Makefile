@@ -1,5 +1,5 @@
 #
-VERSION=1.8
+VERSION=1.10
 
 releases/passwordvault-v$(VERSION).uf2: .pio/build/seeed_wio_terminal/firmware.bin
 	python uf2conv.py -c -b 0x4000 -o $@ $<
