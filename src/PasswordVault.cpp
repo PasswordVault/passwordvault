@@ -4,7 +4,7 @@
 */
 #include <Arduino.h> // for platformio
 
-#define CODE_VERSION "v1.6"
+#define CODE_VERSION "v1.7"
 
 #include <xxtea-lib.h>
 
@@ -480,7 +480,7 @@ int
 getButtons() {
   int cmd = 0;
   do {
-    delay(100);
+    delay(150);
   }
   while (!(cmd = checkButtons()));
 
@@ -668,9 +668,9 @@ listCursor() {
       break;
 
     case SELECT:
-      typeAndFavEntry(filtered_entries[offset + cursor]);
-      mode = MODE_DETAIL;
       current_entry = filtered_entries[offset + cursor];
+      typeAndFavEntry(current_entry);
+      mode = MODE_DETAIL;
       break;
 
     case MODE_FAV:
@@ -757,9 +757,9 @@ class FavController {
           break;
 
         case SELECT:
-          typeAndFavEntry(this->entries[offset + cursor]);
-          mode = MODE_DETAIL;
           current_entry = this->entries[offset + cursor];
+          typeAndFavEntry(current_entry);
+          mode = MODE_DETAIL;
           offset = 0;
           cursor = 0;
           break;
