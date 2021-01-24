@@ -4,7 +4,7 @@
 */
 #include <Arduino.h> // for platformio
 
-#define CODE_VERSION "v1.8"
+#define CODE_VERSION "v1.10"
 
 #include <xxtea-lib.h>
 
