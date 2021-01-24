@@ -14,6 +14,8 @@ The password is then typed to your computer by emulating a keyboard. This works 
 
 You switch between filter and list views by pressing the leftmost button.
 
+For a more detailed account of the PasswordVault's usage, please check out [our wiki](https://github.com/PasswordVault/passwordvault/wiki/PasswordValue-Documentation.-Start-here!).
+
 The passwords are stored encrypted with the XXTEA algorithm. A simple python script is provided to create a file with encrypted passwords. 
 
 ## How to prepare the password file
