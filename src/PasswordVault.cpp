@@ -14,7 +14,7 @@
 
 #define PROMPT_FONT FF6
 #define PROMPT_LARGE_FONT FF7
-#define LIST_FONT FF18
+#define LIST_FONT FF17
 #define ABOUT_FONT FF18
 #define ABOUT_SMALL_FONT FF17
 
@@ -48,6 +48,10 @@ int mode = MODE_LOCK;
 unsigned int list_size;
 unsigned int filtered_list_size;
 unsigned int fav_list_size = 0;
+
+#define LIST_LEFT_MARGIN 20
+#define LIST_TOP_MARGIN 40
+#define LIST_VSPACE 20
 
 typedef struct {
   char* passwd;
@@ -435,7 +439,7 @@ showList() {
     else {
       display.setTextColor(TFT_WHITE, TFT_BLACK);
     }
-    display.drawString(filtered_entries[offset + i]->name, 20, 50 + 20 * i);
+    display.drawString(filtered_entries[offset + i]->name, LIST_LEFT_MARGIN, LIST_TOP_MARGIN + LIST_VSPACE * i);
   }
   display.pushSprite(0, 0);
 }
@@ -751,7 +755,7 @@ class FavController {
           }
           //D Serial.println(offset + i);
           //D Serial.println(fav_entries[offset + i]->name);
-          display.drawString(fav_entries[offset + i]->name, 20, 50 + 20 * i);
+          display.drawString(fav_entries[offset + i]->name, LIST_LEFT_MARGIN, LIST_TOP_MARGIN + LIST_VSPACE * i);
         }
       }
       else {
@@ -886,7 +890,7 @@ GenController::show() {
     else {
       display.setTextColor(TFT_WHITE, TFT_BLACK);
     }
-    display.drawString(c, 20 + x * 20, 50 + y * 20);
+    display.drawString(c, 20 + x * 20, 50 + y * 30);
     x++;
     if (x >= NEWENT_WIDTH) {
       x = 0;
