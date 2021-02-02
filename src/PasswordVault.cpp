@@ -4,7 +4,7 @@
 */
 #include <Arduino.h> // for platformio
 
-#define CODE_VERSION "v1.10"
+#define CODE_VERSION "v1.11"
 
 #include <xxtea-lib.h>
 
@@ -34,6 +34,7 @@ char* strdup(const char*);
 #define MODE_LOCK 8
 #define MODE_FAV 9
 #define MODE_DETAIL 10
+#define MODE_GENPWD 11
 int mode = MODE_LOCK;
 
 #define SCREEN_SIZE 13
@@ -48,6 +49,11 @@ typedef struct {
 
 Entry* entries;
 char* buffer;
+
+const int PASSWORD_LENGTH = 8;
+char password[PASSWORD_LENGTH + 1];
+char newent[] = "-,/0123456789_abcdefghijklmnopqrstuvwxyz<>";
+#define NEWENT_WIDTH 10
 
 Entry** filtered_entries;
 Entry** fav_entries;
@@ -236,6 +242,7 @@ setupJoystick() {
   pinMode(WIO_5S_PRESS, INPUT_PULLUP);
 
   pinMode(WIO_KEY_C, INPUT_PULLUP);
+  pinMode(WIO_KEY_B, INPUT_PULLUP);
 }
 
 
@@ -422,6 +429,13 @@ showList() {
   display.pushSprite(0, 0);
 }
 
+class GenController {
+  public:
+    static void genPassword();
+    void show();
+    void update();
+};
+
 
 int
 checkButtons() {
@@ -466,10 +480,19 @@ checkButtons() {
         return MODE_LIST;
       
       case MODE_DETAIL:
-        return MODE_LIST;
+        return MODE_FAV;
+      
+      case MODE_GENPWD:
+        return MODE_FAV;
     }
     Serial.print("mode: ");
     Serial.println(mode);
+  }
+  else
+  if (digitalRead(WIO_KEY_B) == LOW) {
+    Serial.println("Gen");
+    GenController::genPassword();
+    return MODE_GENPWD;
   }
 
   return 0;
@@ -593,9 +616,7 @@ filterCursor() {
       buffer[buffer_len + 1] = '\0';
       break;
 
-    case MODE_FAV:
-    case MODE_LIST:
-    case MODE_FILTER:
+    default:
       mode = cmd;
       break;
   }
@@ -673,9 +694,7 @@ listCursor() {
       mode = MODE_DETAIL;
       break;
 
-    case MODE_FAV:
-    case MODE_LIST:
-    case MODE_FILTER:
+    default:
       mode = cmd;
       break;
   }
@@ -764,15 +783,12 @@ class FavController {
           cursor = 0;
           break;
 
-        case MODE_FAV:
-        case MODE_LIST:
-        case MODE_FILTER:
+        default:
           mode = cmd;
           break;
       }
     }
 };
-
 
 class DetailController {
   public:
@@ -797,15 +813,90 @@ class DetailController {
       int cmd = getButtons();
 
       switch (cmd) {
-        case MODE_FAV:
-        case MODE_LIST:
-        case MODE_FILTER:
+        default:
           mode = cmd;
           break;
       }
     }
 };
 
+
+void
+GenController::genPassword() {
+  const char specials[] = "!$%&/()=?+*#.,-@";
+  randomSeed(millis());
+
+  for (int i = 0; i < PASSWORD_LENGTH; i++) {
+    password[i] = random('a', 'z' + 1);
+  }
+  password[PASSWORD_LENGTH] = '\0';
+
+  char special = specials[random(strlen(specials) - 1)];
+  int special_pos = random(PASSWORD_LENGTH);
+  password[special_pos] = special;
+
+  char digit = random('0', '9' + 1);
+  int digit_pos = 0;
+  do {
+    digit_pos = random(PASSWORD_LENGTH);
+  }
+  while (digit_pos == special_pos);
+  password[digit_pos] = digit;
+
+  char capital = random('A', 'Z' + 1);
+  int capital_pos = 0;
+  do {
+    capital_pos = random(PASSWORD_LENGTH);
+  }
+  while (capital_pos == special_pos || capital_pos == digit_pos);
+  password[capital_pos] = capital;
+}
+
+void
+GenController::show() {
+  unsigned int x = 0, y = 0;
+
+  display.fillScreen(TFT_BLACK);
+  display.setTextSize(2);
+  display.setTextColor(TFT_WHITE, TFT_BLACK);
+
+  display.drawString("!", 20, 10);
+  display.drawString("New entry", 40, 10);
+
+  display.drawFastHLine(0, 30, 240, TFT_WHITE);
+
+  for (unsigned int i = 0; i < sizeof(newent); i++) {
+    char c[2] = { newent[i], '\0' };
+    if (x == cursor_x && y == cursor_y) {
+      display.setTextColor(TFT_BLACK, TFT_WHITE);
+    }
+    else {
+      display.setTextColor(TFT_WHITE, TFT_BLACK);
+    }
+    display.drawString(c, 20 + x * 20, 50 + y * 20);
+    x++;
+    if (x >= NEWENT_WIDTH) {
+      x = 0;
+      y++;
+    }
+  }
+
+  display.setTextSize(3);
+  display.drawString(password, 20, 200);
+
+  display.pushSprite(0, 0);
+}
+
+void
+GenController::update() {
+  int cmd = getButtons();
+
+  switch (cmd) {
+    default:
+      mode = cmd;
+      break;
+  }
+}
 
 void
 loop() {
@@ -834,6 +925,13 @@ loop() {
     
     case MODE_DETAIL: {
       DetailController ctl = DetailController();
+      ctl.show();
+      ctl.update();
+      break;
+    }
+
+    case MODE_GENPWD: {
+      GenController ctl = GenController();
       ctl.show();
       ctl.update();
       break;
