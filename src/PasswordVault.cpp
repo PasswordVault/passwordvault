@@ -6,8 +6,6 @@
 
 #define CODE_VERSION "v1.11"
 
-#include <xxtea-lib.h>
-
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include "Free_Fonts.h"
@@ -18,10 +16,9 @@
 #define ABOUT_FONT FF18
 #define ABOUT_SMALL_FONT FF17
 
-#include "Keyboard.h"
+#include <Keyboard.h>
 
-#include <Seeed_FS.h>
-#include "SD/Seeed_SD.h"
+#include "files.h"
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite display = TFT_eSprite(&tft);
@@ -53,11 +50,6 @@ unsigned int fav_list_size = 0;
 #define LIST_TOP_MARGIN 40
 #define LIST_VSPACE 20
 
-typedef struct {
-  char* passwd;
-  char* name;
-} Entry;
-
 Entry* entries;
 char* buffer;
 
@@ -70,7 +62,6 @@ Entry** filtered_entries;
 Entry** fav_entries;
 Entry* current_entry;
 
-#define FILTER_SIZE 256
 char filter[FILTER_SIZE];
 #define FILTER_WIDTH 10
 unsigned int filter_lines;
@@ -84,164 +75,6 @@ unsigned int cursor_x = 0, cursor_y = 0;
 unsigned int offset = 0;
 unsigned int cursor = 0;
 unsigned int prefix_pos = 0;
-
-
-int
-countLines(File file, int* line_length) {
-  int i = 0;
-  int l = 0;
-  int c;
-  int k;
-  int first_field = 1;
-  char filter_tmp[FILTER_SIZE];
-
-  *line_length = 0;
-
-  memset(filter_tmp, 0, FILTER_SIZE);
-
-  while (file.available()) {
-    if ((c = file.read()) == '\n') {
-      i++;
-      first_field = 1;
-
-      if (l > *line_length) {
-        *line_length = l;
-      }
-      l = 0;
-    }
-    else {
-      if (c == '\t') {
-        first_field = 0;
-      }
-      if (first_field) {
-        filter_tmp[tolower(c)] = 1;
-      }
-      l++;
-    }
-  }
-  file.seek(0);
-
-  if (l > *line_length) {
-    *line_length = l;
-  }
-
-  memset(filter, 0, FILTER_SIZE);
-  for (c = 0, k = 0; c < FILTER_SIZE; c++) {
-    if (filter_tmp[c]) {
-      filter[k++] = c;
-    }
-  }
-  filter_size = k;
-
-  return i;
-}
-
-
-char*
-readField(File file) {
-  char c;
-  int pos = 0;
-  while (file.available() && (c = file.read()) != '\t' && c != '\n') {
-    buffer[pos++] = c;
-  }
-  buffer[pos] = '\0';
-  return buffer;
-}
-
-
-void
-readLine(File file, Entry* entry) {
-  entry->name = strdup(readField(file));
-  entry->passwd = strdup(xxtea.decrypt(readField(file)).c_str());
-}
-
-
-void
-readFile(fs::FS& fs, const char* path) {
-  int i = 0;
-  int line_length;
-
-  Serial.print("Reading file: ");
-  Serial.println(path);
-  File file = fs.open(path);
-  if (!file) {
-    Serial.println("Failed to open file for reading");
-    return;
-  }
-
-  list_size = countLines(file, &line_length);
-  Serial.print("Lines: ");
-  Serial.println(list_size);
-
-  buffer = (char*)malloc(line_length + 1);
-  entries = (Entry*)malloc(sizeof(Entry) * list_size);
-  filtered_entries = (Entry**)malloc(sizeof(Entry*) * list_size);
-  fav_entries = (Entry**)malloc(sizeof(Entry*) * list_size);
-
-  while (file.available()) {
-    readLine(file, &entries[i]);
-    i++;
-  }
-  file.close();
-
-  Serial.println("Done.");
-}
-
-
-void
-writeFav(fs::FS& fs, const char* path) {
-  Serial.print("Writing fav: ");
-  Serial.println(path);
-  File file = fs.open(path, "w");
-  if (!file) {
-    Serial.println("Failed to open file for writing");
-    return;
-  }
-  for (unsigned int i = 0; i < fav_list_size; i ++) {
-    file.write(fav_entries[i]->name);
-    file.write("\n");
-  }
-  file.close();
-  Serial.println("Done.");
-}
-
-
-void
-readFav(fs::FS& fs, const char* path) {
-  char* name;
-  bool found;
-
-  Serial.print("Reading fav: ");
-  Serial.println(path);
-  File file = fs.open(path);
-  if (!file) {
-    Serial.println("Failed to open file for reading");
-    return;
-  }
-  while (file.available()) {
-    name = readField(file);
-    found = false;
-    for (unsigned int i = 0; i < list_size; i++) {
-      if (0 == strcmp(entries[i].name, name)) {
-        fav_entries[fav_list_size++] = &entries[i];
-        Serial.print("Fav ");
-        Serial.print(name);
-        Serial.println(" added");
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      Serial.print("Fav ");
-      Serial.print(name);
-      Serial.println(" not found");
-    }
-  }
-  file.close();
-
-  Serial.print(fav_list_size);
-  Serial.println(" favs read.");
-}
 
 
 void
@@ -265,7 +98,7 @@ setup() {
 # include "./env.h"
   ; 
 
-  xxtea.setKey(PASSWD);
+  initFiles(PASSWD);
 
   tft.init();
   tft.setRotation(2);
