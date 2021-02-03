@@ -703,6 +703,10 @@ listCursor() {
       }
       break;
 
+    case RIGHT:
+    case LEFT:
+      break;
+
     case SELECT:
       current_entry = filtered_entries[offset + cursor];
       typeAndFavEntry(current_entry);
@@ -791,6 +795,10 @@ class FavController {
           }
           break;
 
+        case RIGHT:
+        case LEFT:
+          break;
+
         case SELECT:
           current_entry = this->entries[offset + cursor];
           typeAndFavEntry(current_entry);
@@ -830,7 +838,7 @@ class DetailController {
       int cmd = getButtons();
 
       switch (cmd) {
-        default:
+        case MODE_FAV:
           mode = cmd;
           break;
       }
