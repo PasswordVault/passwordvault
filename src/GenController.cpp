@@ -4,12 +4,13 @@
 #include <TFT_eSPI.h>
 
 extern char* buffer;
-extern char* password;
-extern char* newent;
+extern char password[];
+extern char newent[];
 extern TFT_eSprite display;
 
 void
 GenController::setup() {
+  Serial.println("Gen.setup");
   this->textEntry.setup(buffer, "!", newent, NEWENT_WIDTH);
 
   const char specials[] = "!$%&/()=?+*#.,-@";
@@ -39,6 +40,9 @@ GenController::setup() {
   }
   while (capital_pos == special_pos || capital_pos == digit_pos);
   password[capital_pos] = capital;
+
+  Serial.print("Gen.setup: Password=");
+  Serial.println(password);
 }
 
 
