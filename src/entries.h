@@ -1,7 +1,7 @@
 /**
  */
 
-typedef struct {
+typedef struct Entry {
   char* passwd;
   char* name;
 } Entry;

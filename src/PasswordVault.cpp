@@ -28,14 +28,15 @@ unsigned int list_size;
 unsigned int filtered_list_size;
 unsigned int fav_list_size = 0;
 
-Entry* entries;
-char* buffer;
+Entry* entries = NULL;
+char* buffer = NULL;
+unsigned int line_length;
 
 char password[PASSWORD_LENGTH + 1];
 char newent[] = "-,/0123456789_abcdefghijklmnopqrstuvwxyz<>";
 
 Entry** filtered_entries;
-Entry** fav_entries;
+Entry** fav_entries = NULL;
 Entry* current_entry;
 
 char filter[FILTER_SIZE];
@@ -180,14 +181,10 @@ getButtons() {
   return cmd;
 }
 
-
 void
-typeAndFavEntry(Entry* entry) {
+favEntry(Entry* entry) {
   unsigned int i;
   bool grow = true;
-
-  Keyboard.print(entry->passwd);
-  Serial.println(entry->name);
 
   // Insert the entry as the first favorite
 
@@ -210,14 +207,22 @@ typeAndFavEntry(Entry* entry) {
   fav_entries[0] = entry;
   if (grow) {
     fav_list_size++;
-      writeFav(SD, "/fav.txt");
+    writeFav(SD, "/fav.txt");
   }
+}
+
+
+void
+typeAndFavEntry(Entry* entry) {
+  Keyboard.print(entry->passwd);
+  Serial.println(entry->name);
+
+  favEntry(entry);
 }
 
 void 
 setMode(unsigned int _mode) {
-  mode = _mode;
-  switch (mode) {
+  switch (_mode) {
     case MODE_FILTER:
       buffer[0] = '\0';
       cursor_x = 0;
@@ -257,6 +262,7 @@ setMode(unsigned int _mode) {
       ctl = &controllers.gen;
       break;
   }
+  mode = _mode;
 }
 
 

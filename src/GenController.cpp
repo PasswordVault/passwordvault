@@ -1,18 +1,21 @@
 /**
  */
 #include "controllers.h"
+#include "files.h"
 #include <TFT_eSPI.h>
 
 extern char* buffer;
 extern char password[];
+extern unsigned int line_length;
 extern char newent[];
 extern TFT_eSprite display;
+extern unsigned int mode;
+extern const char* PASSWD;
+
+void favEntry(Entry* entry);
 
 void
-GenController::setup() {
-  Serial.println("Gen.setup");
-  this->textEntry.setup(buffer, "!", newent, NEWENT_WIDTH);
-
+GenController::genPassword() {
   const char specials[] = "!$%&/()=?+*#.,-@";
   randomSeed(millis());
 
@@ -45,6 +48,17 @@ GenController::setup() {
   Serial.println(password);
 }
 
+void
+GenController::setup() {
+  Serial.println("Gen.setup");
+
+  // Generate a new password only the first time we come here 
+  if (mode != MODE_GENPWD) {
+    this->textEntry.setup(buffer, line_length+1, "!", newent, NEWENT_WIDTH, MODE_SAVEPWD);
+    this->genPassword();
+  }
+}
+
 
 void
 GenController::show() {
@@ -60,4 +74,18 @@ GenController::show() {
 void
 GenController::update() {
   this->textEntry.update();
+  if (mode == MODE_SAVEPWD) {
+    Serial.println("Saving...");
+
+    Entry entry;
+    entry.name = buffer;
+    entry.passwd = password;
+    favEntry(&entry);
+    writeFile(SD, "/crypted2.txt", entry);
+    initFiles(PASSWD);
+
+    Serial.println("Saved.");
+    buffer[0] = '\0'; 
+    setMode(MODE_FAV);
+  }
 }

@@ -7,13 +7,22 @@ extern unsigned int mode;
 extern TFT_eSprite display;
 
 void
-TextEntry::setup(char* buffer, const char* prompt, const char* keys, unsigned int width) {
+TextEntry::setup(
+    char* buffer,               // the input buffer 
+    unsigned int buf_size,      // the maximum buffer size
+    const char* prompt,         // the prompt displayed left of the input buffer
+    const char* keys,           // the list of available characters
+    unsigned int width,         // number of columns in which to present the available colors
+    unsigned int next_mode      // if != 0, determines the mode to set on ">" 
+  ) {
   this->buffer = buffer;
   this->buffer[0] = '\0';
+  this->buf_size = buf_size;
   this->prompt = prompt;
   this->keys = keys;
   this->width = width;
-  this->keyLen = strlen(keys);
+  this->next_mode = next_mode;
+  this->key_len = strlen(keys);
   this->cursor_x = this->cursor_y = 0;
 }
 
@@ -34,7 +43,7 @@ TextEntry::show() {
 
   display.drawFastHLine(0, 30, 240, TFT_WHITE);
 
-  for (unsigned int i = 0; i < this->keyLen; i++) {
+  for (unsigned int i = 0; i < this->key_len; i++) {
     char c[2] = { this->keys[i], '\0' };
     if (x == this->cursor_x && y == this->cursor_y) {
       display.setTextColor(TFT_BLACK, TFT_WHITE);
@@ -49,7 +58,8 @@ TextEntry::show() {
       y++;
     }
   }
-  this->keyLines = y;
+  display.setTextColor(TFT_WHITE, TFT_BLACK);
+  this->key_lines = y;
 }
 
 void
@@ -67,7 +77,7 @@ TextEntry::update() {
 
     case RIGHT:
       new_i = this->cursor_y * this->width + this->cursor_x + 1;
-      if (this->cursor_x < this->width - 1 && new_i < this->keyLen - 1) {
+      if (this->cursor_x < this->width - 1 && new_i < this->key_len) {
         this->cursor_x++;
       }
       break;
@@ -80,7 +90,7 @@ TextEntry::update() {
 
     case DOWN:
       new_i = (this->cursor_y + 1) * this->width + this->cursor_x;
-      if (this->cursor_y < this->keyLines && new_i < this->keyLen) {
+      if (this->cursor_y < this->key_lines && new_i < this->key_len) {
         this->cursor_y++;
       }
       break;
@@ -88,19 +98,45 @@ TextEntry::update() {
     case SELECT:
       i = this->cursor_y * this->width + this->cursor_x;
       buffer_len = strlen(this->buffer);
-      this->buffer[buffer_len] = this->keys[i];
-      this->buffer[buffer_len + 1] = '\0';
+      switch (this->keys[i]) {
+        case '<':
+          if (buffer_len > 0) {
+            this->buffer[buffer_len - 1] = '\0';
+          }
+          break;
+
+        case '>':
+          if (this->next_mode && buffer_len > 0) {
+            setMode(this->next_mode);
+            break;
+          }
+
+        default:
+          if (buffer_len + 1 >= this->buf_size) {
+            break;
+          }
+          this->buffer[buffer_len] = this->keys[i];
+          this->buffer[buffer_len + 1] = '\0';
+      }
       break;
 
     default:
-      setMode(cmd);
+      if (!this->next_mode || this->buffer[0] == '\0') {
+        Serial.print("setMode: ");
+        Serial.print(cmd);
+        Serial.print(", buffer_len: ");
+        Serial.println(buffer_len);
+        setMode(cmd);
+      }
       break;
   }
   i = this->cursor_y * this->width + this->cursor_x;
-  Serial.print("Filter [");
+  Serial.print("keys[");
   Serial.print(i);
   Serial.print("] = ");
   Serial.print(this->keys[i]);
-  Serial.print(", filter size: ");
-  Serial.println(this->keyLen);
+  Serial.print(", key_len: ");
+  Serial.print(this->key_len);
+  Serial.print(", mode: ");
+  Serial.println(mode);
 }

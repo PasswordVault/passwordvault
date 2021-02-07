@@ -15,14 +15,17 @@ class TextEntry: public Controller {
   private:
     const char* prompt;
     char* buffer;
+    unsigned int buf_size;
     const char* keys;
     unsigned int width;
-    unsigned int keyLen;
+    unsigned int next_mode;
+    unsigned int key_len;
     unsigned int cursor_x, cursor_y;
 
   public:
-    unsigned int keyLines;
-    void setup(char* buffer, const char* prompt, const char* keys, unsigned int width);
+    unsigned int key_lines;
+    void setup(char* buffer, unsigned int buf_size, const char* prompt, 
+      const char* keys, unsigned int width, unsigned int next_mode=0);
     void show();
     void update();
 };
@@ -51,6 +54,7 @@ class ListController: public Controller {
 class GenController: public Controller {
   private:
     TextEntry textEntry;
+    void genPassword();
   public:
     void setup();
     void show();

@@ -32,3 +32,4 @@
 #define MODE_FAV 9
 #define MODE_DETAIL 10
 #define MODE_GENPWD 11
+#define MODE_SAVEPWD 12

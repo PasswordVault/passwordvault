@@ -9,6 +9,7 @@
 
 extern char filter[];
 extern char* buffer;
+extern unsigned int line_length;
 extern unsigned int list_size;
 extern Entry* entries;
 extern Entry** filtered_entries;
@@ -17,7 +18,7 @@ extern unsigned int fav_list_size;
 
 
 int
-countLines(File file, int* line_length) {
+countLines(File file, unsigned int* line_length) {
   int i = 0;
   int l = 0;
   int c;
@@ -91,7 +92,6 @@ readLine(File file, Entry* entry) {
 void
 readFile(fs::FS& fs, const char* path) {
   int i = 0;
-  int line_length;
 
   Serial.print("Reading file: ");
   Serial.println(path);
@@ -105,6 +105,19 @@ readFile(fs::FS& fs, const char* path) {
   Serial.print("Lines: ");
   Serial.println(list_size);
 
+  if (buffer) {
+    free(buffer);
+  }
+  if (entries) {
+    for (unsigned int i = 0; i < list_size; i++) {
+      free(entries[i].name);
+      free(entries[i].passwd);
+    }
+    free(entries);
+    free(filtered_entries);
+    free(fav_entries);
+  }
+
   buffer = (char*)malloc(line_length + 1);
   entries = (Entry*)malloc(sizeof(Entry) * list_size);
   filtered_entries = (Entry**)malloc(sizeof(Entry*) * list_size);
@@ -117,6 +130,37 @@ readFile(fs::FS& fs, const char* path) {
   file.close();
 
   Serial.println("Done.");
+}
+
+void
+writeLine(File file, Entry* entry) {
+  file.print(entry->name);
+  file.print("\t");
+  file.println(xxtea.encrypt(entry->passwd).c_str());
+}
+
+void
+writeFile(fs::FS& fs, const char* path, Entry newent) {
+  Serial.print("Writing file: ");
+  Serial.println(path);
+  File file = fs.open(path, FILE_WRITE);
+  if (!file) {
+    Serial.println("Failed to open file for writing");
+    return;
+  }
+
+  bool written = false;
+  for (unsigned int i = 0; i < list_size; i++) {
+    if (0 > strcmp(newent.name, entries[i].name)) {
+      writeLine(file, &newent);
+      written = true;
+    }
+    writeLine(file, &entries[i]);
+  }
+  if (!written) {
+    writeLine(file, &newent);
+  }
+  file.close();
 }
 
 

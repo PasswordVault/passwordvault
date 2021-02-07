@@ -7,6 +7,7 @@ extern char filter[];
 extern char* buffer;
 extern Entry* entries;
 extern Entry** filtered_entries;
+extern unsigned int line_length;
 extern unsigned int list_size;
 extern unsigned int filtered_list_size;
 extern uint8_t cursor_x, cursor_y;
@@ -19,7 +20,7 @@ void
 FilterController::setup() {
   Serial.println("Filter.setup");
   Serial.println(filter);
-  this->textEntry.setup(buffer, ">", filter, FILTER_WIDTH);
+  this->textEntry.setup(buffer, line_length +1, ">", filter, FILTER_WIDTH);
   Serial.println("Filter.setup done.");
 }
 
@@ -43,13 +44,13 @@ void
 FilterController::show() {
   this->textEntry.show();
   Serial.print("Key lines: ");
-  Serial.println(this->textEntry.keyLines);
+  Serial.println(this->textEntry.key_lines);
 
   filtered_list_size = filterEntries();
 
-  display.drawFastHLine(0, 80 + this->textEntry.keyLines * 20, 240, TFT_WHITE);
+  display.drawFastHLine(0, 80 + this->textEntry.key_lines * 20, 240, TFT_WHITE);
   display.setFreeFont(LIST_FONT);
-  display.setCursor(20, 100 + this->textEntry.keyLines * 20);
+  display.setCursor(20, 100 + this->textEntry.key_lines * 20);
   display.print(filtered_list_size);
   display.print(" passwords");
 
