@@ -4,21 +4,14 @@
 */
 #include <Arduino.h> // for platformio
 
-#define CODE_VERSION "v1.11"
-
 #include <SPI.h>
 #include <TFT_eSPI.h>
-#include "Free_Fonts.h"
-
-#define PROMPT_FONT FF6
-#define PROMPT_LARGE_FONT FF7
-#define LIST_FONT FF17
-#define ABOUT_FONT FF18
-#define ABOUT_SMALL_FONT FF17
-
 #include <Keyboard.h>
 
+#include "controllers.h"
 #include "files.h"
+
+Controllers controllers;
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite display = TFT_eSprite(&tft);
@@ -28,54 +21,30 @@ const char* PASSWD;
 int strncasecmp(const char*, const char*, int);
 char* strdup(const char*);
 
-#define UP 1
-#define DOWN 2
-#define LEFT 3
-#define RIGHT 4
-#define SELECT 5
-#define MODE_FILTER 6
-#define MODE_LIST 7
-#define MODE_LOCK 8
-#define MODE_FAV 9
-#define MODE_DETAIL 10
-#define MODE_GENPWD 11
-int mode = MODE_LOCK;
+unsigned int mode;
+Controller* ctl;
 
-#define SCREEN_SIZE 13
 unsigned int list_size;
 unsigned int filtered_list_size;
 unsigned int fav_list_size = 0;
 
-#define LIST_LEFT_MARGIN 20
-#define LIST_TOP_MARGIN 40
-#define LIST_VSPACE 20
-
 Entry* entries;
 char* buffer;
 
-const int PASSWORD_LENGTH = 8;
 char password[PASSWORD_LENGTH + 1];
 char newent[] = "-,/0123456789_abcdefghijklmnopqrstuvwxyz<>";
-#define NEWENT_WIDTH 10
 
 Entry** filtered_entries;
 Entry** fav_entries;
 Entry* current_entry;
 
 char filter[FILTER_SIZE];
-#define FILTER_WIDTH 10
-unsigned int filter_lines;
-unsigned int filter_size = 0;
 
-char lock[] = "123456789<0>";
-#define LOCK_WIDTH 3
-
-unsigned int cursor_x = 0, cursor_y = 0;
+uint8_t cursor_x = 0, cursor_y = 0;
 
 unsigned int offset = 0;
-unsigned int cursor = 0;
+uint8_t cursor = 0;
 unsigned int prefix_pos = 0;
-
 
 void
 setupJoystick() {
@@ -93,12 +62,10 @@ setupJoystick() {
 void
 setup() {
   Serial.begin(115200);
-  //while (!Serial);
+  while (!Serial);
 
 # include "./env.h"
   ; 
-
-  initFiles(PASSWD);
 
   tft.init();
   tft.setRotation(2);
@@ -112,43 +79,18 @@ setup() {
 
   setupJoystick();
 
-  if (!SD.begin(SDCARD_SS_PIN, SDCARD_SPI, 4000000UL)) {
-    Serial.println("Card mount failed");
-    return;
-  }
+  Serial.print("PasswordVault ");
+  Serial.println(CODE_VERSION);
 
-  uint8_t card_type = SD.cardType();
-  if (card_type == CARD_NONE) {
-    Serial.println("No SD card attached");
+  if (!initFiles(PASSWD)) {
     return;
   }
 
   Keyboard.begin();
 
-  Serial.print("PasswordVault ");
-  Serial.println(CODE_VERSION);
+  setMode(MODE_LOCK);
 
-  readFile(SD, "/crypted.txt");
-  readFav(SD, "/fav.txt");
-  buffer[0] = '\0';
-}
-
-
-bool 
-prefix(const char *pre, const char *str) {
-  return strncasecmp(pre, str, strlen(pre)) == 0;
-}
-
-
-int
-filterEntries() {
-  int count = 0;
-  for (unsigned int i = 0; i < list_size; i++) {
-    if (prefix(buffer, entries[i].name)) {
-      filtered_entries[count++] = &entries[i];
-    }
-  }
-  return count;
+  Serial.println("Setup complete.");
 }
 
 
@@ -163,126 +105,6 @@ about() {
   display.drawCentreString("(c) 2021 Olav Schettler", 120, OVERLAY_Y + 56, 1);
   display.drawCentreString("info@passwordvault.de", 120, OVERLAY_Y + 72, 1);  
 }
-
-
-void
-showLock() {
-  unsigned int x = 0, y = 0;
-
-  display.fillScreen(TFT_BLACK);
-  display.setFreeFont(PROMPT_FONT);
-  display.setTextColor(TFT_WHITE, TFT_BLACK);
-
-  display.drawString(">", 20, 10);
-  display.drawString(buffer, 40, 10);
-
-  display.drawFastHLine(0, 30, 240, TFT_WHITE);
-
-  for (unsigned int i = 0; i < sizeof(lock); i++) {
-    char c[2] = { lock[i], '\0' };
-    if (x == cursor_x && y == cursor_y) {
-      display.setTextColor(TFT_BLACK, TFT_WHITE);
-    }
-    else {
-      display.setTextColor(TFT_WHITE, TFT_BLACK);
-    }
-    display.drawString(c, 90 + x * 20, 50 + y * 20);
-    x++;
-    if (x >= LOCK_WIDTH) {
-      x = 0;
-      y++;
-    }
-  }
-
-  display.drawFastHLine(0, 150, 240, TFT_WHITE);
-  display.setFreeFont(ABOUT_FONT);
-  display.drawCentreString("Please unlock", 120, 160, 1);
-
-  about();
-
-  display.pushSprite(0, 0);
-}
-
-
-void
-showFilter() {
-  unsigned int x = 0, y = 0;
-
-  display.fillScreen(TFT_BLACK);
-  display.setFreeFont(PROMPT_FONT);
-  display.setTextColor(TFT_WHITE, TFT_BLACK);
-
-  display.drawString(">", 20, 10);
-  display.drawString(buffer, 40, 10);
-
-  display.drawFastHLine(0, 30, 240, TFT_WHITE);
-
-  for (unsigned int i = 0; i < filter_size; i++) {
-    char c[2] = { filter[i], '\0' };
-    if (x == cursor_x && y == cursor_y) {
-      display.setTextColor(TFT_BLACK, TFT_WHITE);
-    }
-    else {
-      display.setTextColor(TFT_WHITE, TFT_BLACK);
-    }
-    display.drawString(c, 20 + x * 20, 50 + y * 20);
-    x++;
-    if (x >= FILTER_WIDTH) {
-      x = 0;
-      y++;
-    }
-  }
-  filter_lines = y;
-
-  filtered_list_size = filterEntries();
-
-  display.drawFastHLine(0, 80 + filter_lines * 20, 240, TFT_WHITE);
-  display.setFreeFont(LIST_FONT);
-  display.setCursor(20, 100 + filter_lines * 20);
-  display.print(filtered_list_size);
-  display.print(" passwords");
-
-  about();
-
-  display.pushSprite(0, 0);
-}
-
-
-void
-showList() {
-  Serial.print("All offset / cursor: ");
-  Serial.print(offset);
-  Serial.print(" ");
-  Serial.println(cursor);
-
-  display.fillScreen(TFT_BLACK);
-  display.setFreeFont(PROMPT_FONT);
-  display.setTextColor(TFT_WHITE, TFT_BLACK);
-
-  display.drawString("#", 20, 10);
-  display.drawString(buffer, 40, 10);
-
-  display.drawFastHLine(0, 30, 240, TFT_WHITE);
-  display.setFreeFont(LIST_FONT);
-
-  for (unsigned int i = 0; offset + i < filtered_list_size && i < SCREEN_SIZE; i++) {
-    if (i == cursor) {
-      display.setTextColor(TFT_BLACK, TFT_WHITE);
-    }
-    else {
-      display.setTextColor(TFT_WHITE, TFT_BLACK);
-    }
-    display.drawString(filtered_entries[offset + i]->name, LIST_LEFT_MARGIN, LIST_TOP_MARGIN + LIST_VSPACE * i);
-  }
-  display.pushSprite(0, 0);
-}
-
-class GenController {
-  public:
-    static void genPassword();
-    void show();
-    void update();
-};
 
 
 int
@@ -339,7 +161,7 @@ checkButtons() {
   else
   if (digitalRead(WIO_KEY_B) == LOW) {
     Serial.println("Gen");
-    GenController::genPassword();
+    setMode(MODE_GENPWD);
     return MODE_GENPWD;
   }
 
@@ -356,125 +178,6 @@ getButtons() {
   while (!(cmd = checkButtons()));
 
   return cmd;
-}
-
-
-void
-lockCursor() {
-  int i;
-  int buffer_len;
-  int cmd = getButtons();
-
-  switch (cmd) {
-    case LEFT:
-      if (cursor_x > 0) {
-        cursor_x--;
-      }
-      break;
-
-    case RIGHT:
-      if (cursor_x < LOCK_WIDTH - 1) {
-        cursor_x++;
-      }
-      break;
-
-    case UP:
-      if (cursor_y > 0) {
-        cursor_y--;
-      }
-      break;
-
-    case DOWN:
-      if (cursor_y < sizeof(lock) / LOCK_WIDTH - 1) {
-        cursor_y++;
-      }
-      break;
-
-    case SELECT:
-      i = cursor_y * LOCK_WIDTH + cursor_x;
-      buffer_len = strlen(buffer);
-      switch (lock[i]) {
-        case '<':
-          if (buffer_len > 0) {
-            buffer[buffer_len - 1] = '\0';
-          }
-          break;
-
-        case '>':
-          if (0 == strcmp(PASSWD, buffer)) {
-            Serial.println("Unlocked :)");
-            mode = MODE_FILTER;
-            buffer[0] = '\0';
-            cursor_x = 0;
-            cursor_y = 0;
-          }
-          else {
-            buffer[0] = '\0';
-          }
-          break;
-
-        default:
-          if (buffer_len > 7) {
-            break;
-          }
-          buffer[buffer_len] = lock[i];
-          buffer[buffer_len + 1] = '\0';
-      }
-      break;
-  }
-}
-
-void
-filterCursor() {
-  unsigned int i, new_i;
-  unsigned int buffer_len;
-  int cmd = getButtons();
-
-  switch (cmd) {
-    case LEFT:
-      if (cursor_x > 0) {
-        cursor_x--;
-      }
-      break;
-
-    case RIGHT:
-      new_i = cursor_y * FILTER_WIDTH + cursor_x + 1;
-      if (cursor_x < FILTER_WIDTH - 1 && new_i < filter_size - 1) {
-        cursor_x++;
-      }
-      break;
-
-    case UP:
-      if (cursor_y > 0) {
-        cursor_y--;
-      }
-      break;
-
-    case DOWN:
-      new_i = (cursor_y + 1) * FILTER_WIDTH + cursor_x;
-      if (cursor_y < filter_lines && new_i < filter_size) {
-        cursor_y++;
-      }
-      break;
-
-    case SELECT:
-      i = cursor_y * FILTER_WIDTH + cursor_x;
-      buffer_len = strlen(buffer);
-      buffer[buffer_len] = filter[i];
-      buffer[buffer_len + 1] = '\0';
-      break;
-
-    default:
-      mode = cmd;
-      break;
-  }
-  i = cursor_y * FILTER_WIDTH + cursor_x;
-  Serial.print("Filter [");
-  Serial.print(i);
-  Serial.print("] = ");
-  Serial.print(filter[i]);
-  Serial.print(", filter size: ");
-  Serial.println(filter_size);
 }
 
 
@@ -511,288 +214,55 @@ typeAndFavEntry(Entry* entry) {
   }
 }
 
-void
-listCursor() {
-  int cmd = getButtons();
-
-  switch (cmd) {
-    case UP:
-      if (cursor > 0) {
-        cursor--;
-      }
-      else
-      if (offset > 0) {
-        offset--;
-      }
-      break;
-
-    case DOWN:
-      if (cursor < min(SCREEN_SIZE - 1, filtered_list_size - 1)) {
-        cursor++;
-      }
-      else
-      if (cursor == SCREEN_SIZE - 1 && offset < filtered_list_size - SCREEN_SIZE) {
-        offset++;
-      }
-      break;
-
-    case RIGHT:
-    case LEFT:
-      break;
-
-    case SELECT:
-      current_entry = filtered_entries[offset + cursor];
-      typeAndFavEntry(current_entry);
-      mode = MODE_DETAIL;
-      break;
-
-    default:
-      mode = cmd;
-      break;
-  }
-}
-
-class FavController {
-  private:
-    Entry** entries;
-    unsigned int list_size;
-
-  public:
-    FavController(Entry** entries, int list_size) {
-      this->entries = entries;
-      this->list_size = list_size;
-    }
-
-    void
-    show() {
-      Serial.print("Fav offset=");
-      Serial.print(offset);
-      Serial.print(" cursor=");
-      Serial.print(cursor);
-      Serial.print(" size=");
-      Serial.println(this->list_size);
-
-      display.fillScreen(TFT_BLACK);
-      display.setFreeFont(PROMPT_FONT);
-      display.setTextColor(TFT_WHITE, TFT_BLACK);
-
-      display.drawString("*", 20, 10);
-      display.drawString(buffer, 40, 10);
-
-      display.drawFastHLine(0, 30, 240, TFT_WHITE);
-      display.setFreeFont(LIST_FONT);
-
-      if (this->list_size > 0) {
-        for (unsigned int i = 0; offset + i < this->list_size && i < SCREEN_SIZE; i++) {
-          if (i == cursor) {
-            display.setTextColor(TFT_BLACK, TFT_WHITE);
-          }
-          else {
-            display.setTextColor(TFT_WHITE, TFT_BLACK);
-          }
-          //D Serial.println(offset + i);
-          //D Serial.println(fav_entries[offset + i]->name);
-          display.drawString(fav_entries[offset + i]->name, LIST_LEFT_MARGIN, LIST_TOP_MARGIN + LIST_VSPACE * i);
-        }
-      }
-      else {
-        display.setTextColor(TFT_YELLOW, TFT_BLACK);
-        display.setFreeFont(ABOUT_FONT);
-        display.drawCentreString("No favorites yet", 120, 160, 1);
-      }
-      display.pushSprite(0, 0);
-    }
-
-    void
-    update() {
-      int cmd = getButtons();
-
-      switch (cmd) {
-        case UP:
-          if (cursor > 0) {
-            cursor--;
-          }
-          else
-          if (offset > 0) {
-            offset--;
-          }
-          break;
-
-        case DOWN:
-          if (cursor < min(SCREEN_SIZE - 1, this->list_size - 1)) {
-            cursor++;
-          }
-          else
-          if (cursor == SCREEN_SIZE - 1 && offset < this->list_size - SCREEN_SIZE) {
-            offset++;
-          }
-          break;
-
-        case RIGHT:
-        case LEFT:
-          break;
-
-        case SELECT:
-          current_entry = this->entries[offset + cursor];
-          typeAndFavEntry(current_entry);
-          mode = MODE_DETAIL;
-          offset = 0;
-          cursor = 0;
-          break;
-
-        default:
-          mode = cmd;
-          break;
-      }
-    }
-};
-
-class DetailController {
-  public:
-    void
-    show() {
-      display.fillScreen(TFT_BLACK);
-      display.setFreeFont(PROMPT_FONT);
-      display.setTextColor(TFT_WHITE, TFT_BLACK);
-
-      display.drawString(":", 20, 10);
-      display.drawString(current_entry->name, 40, 10);
-
-      display.drawFastHLine(0, 30, 240, TFT_WHITE);
-      display.setFreeFont(ABOUT_FONT);
-
-      display.drawString(current_entry->passwd, 20, 50);
-
-      display.pushSprite(0, 0);
-    }
-
-    void
-    update() {
-      int cmd = getButtons();
-
-      switch (cmd) {
-        case MODE_FAV:
-          mode = cmd;
-          break;
-      }
-    }
-};
-
-
-void
-GenController::genPassword() {
-  const char specials[] = "!$%&/()=?+*#.,-@";
-  randomSeed(millis());
-
-  for (int i = 0; i < PASSWORD_LENGTH; i++) {
-    password[i] = random('a', 'z' + 1);
-  }
-  password[PASSWORD_LENGTH] = '\0';
-
-  char special = specials[random(strlen(specials) - 1)];
-  int special_pos = random(PASSWORD_LENGTH);
-  password[special_pos] = special;
-
-  char digit = random('0', '9' + 1);
-  int digit_pos = 0;
-  do {
-    digit_pos = random(PASSWORD_LENGTH);
-  }
-  while (digit_pos == special_pos);
-  password[digit_pos] = digit;
-
-  char capital = random('A', 'Z' + 1);
-  int capital_pos = 0;
-  do {
-    capital_pos = random(PASSWORD_LENGTH);
-  }
-  while (capital_pos == special_pos || capital_pos == digit_pos);
-  password[capital_pos] = capital;
-}
-
-void
-GenController::show() {
-  unsigned int x = 0, y = 0;
-
-  display.fillScreen(TFT_BLACK);
-  display.setFreeFont(PROMPT_FONT);
-  display.setTextColor(TFT_WHITE, TFT_BLACK);
-
-  display.drawString("!", 20, 10);
-  display.drawString("New entry", 40, 10);
-
-  display.drawFastHLine(0, 30, 240, TFT_WHITE);
-
-  for (unsigned int i = 0; i < sizeof(newent); i++) {
-    char c[2] = { newent[i], '\0' };
-    if (x == cursor_x && y == cursor_y) {
-      display.setTextColor(TFT_BLACK, TFT_WHITE);
-    }
-    else {
-      display.setTextColor(TFT_WHITE, TFT_BLACK);
-    }
-    display.drawString(c, 20 + x * 20, 50 + y * 30);
-    x++;
-    if (x >= NEWENT_WIDTH) {
-      x = 0;
-      y++;
-    }
-  }
-
-  display.setFreeFont(PROMPT_LARGE_FONT);
-  display.drawString(password, 20, 200);
-
-  display.pushSprite(0, 0);
-}
-
-void
-GenController::update() {
-  int cmd = getButtons();
-
-  switch (cmd) {
-    default:
-      mode = cmd;
-      break;
-  }
-}
-
-void
-loop() {
+void 
+setMode(unsigned int _mode) {
+  mode = _mode;
   switch (mode) {
-    case MODE_FILTER:    
-      showFilter();
-      filterCursor();
+    case MODE_FILTER:
+      buffer[0] = '\0';
+      cursor_x = 0;
+      cursor_y = 0;
+
+      controllers.filter.setup();
+      ctl = &controllers.filter;
       break;
 
     case MODE_LIST:
-      showList();
-      listCursor();
+      controllers.list.setup();
+      ctl = &controllers.list;
       break;
 
-    case MODE_FAV: {
-      FavController ctl = FavController(fav_entries, fav_list_size);
-      ctl.show();
-      ctl.update();
+    case MODE_FAV: 
+      controllers.fav.setup(fav_entries, fav_list_size);
+      ctl = &controllers.fav;
       break;
-    }
 
     case MODE_LOCK:
-      showLock();
-      lockCursor();
+      buffer[0] = '\0';
+
+      controllers.lock.setup();
+      ctl = &controllers.lock;
       break;
     
-    case MODE_DETAIL: {
-      DetailController ctl = DetailController();
-      ctl.show();
-      ctl.update();
-      break;
-    }
+    case MODE_DETAIL:
+      offset = 0;
+      cursor = 0;
 
-    case MODE_GENPWD: {
-      GenController ctl = GenController();
-      ctl.show();
-      ctl.update();
+      controllers.detail.setup();
+      ctl = &controllers.detail;
       break;
-    }
+
+    case MODE_GENPWD:
+      controllers.gen.setup();
+      ctl = &controllers.gen;
+      break;
   }
+}
+
+
+void
+loop() {
+  Serial.println("Loop");
+  ctl->show();
+  ctl->update();
 }

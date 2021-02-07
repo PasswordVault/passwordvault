@@ -6,15 +6,6 @@
 
 #define FILTER_SIZE 256
 
-typedef struct {
-  char* passwd;
-  char* name;
-} Entry;
-
-void initFiles(const char* password);
-int countLines(File file, int* line_length);
-char* readField(File file);
-void readLine(File file, Entry* entry);
-void readFile(fs::FS& fs, const char* path);
+bool initFiles(const char* password);
 void writeFav(fs::FS& fs, const char* path);
 void readFav(fs::FS& fs, const char* path);

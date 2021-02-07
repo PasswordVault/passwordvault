@@ -4,22 +4,16 @@
 #include <Arduino.h>
 #include <xxtea-lib.h>
 
+#include "entries.h"
 #include "files.h"
 
 extern char filter[];
-extern unsigned int filter_size;
 extern char* buffer;
 extern unsigned int list_size;
 extern Entry* entries;
 extern Entry** filtered_entries;
 extern Entry** fav_entries;
 extern unsigned int fav_list_size;
-
-
-void
-initFiles(const char* password) {
-  xxtea.setKey(password);
-}
 
 
 int
@@ -67,7 +61,9 @@ countLines(File file, int* line_length) {
       filter[k++] = c;
     }
   }
-  filter_size = k;
+  filter[k] = '\0';
+  Serial.print("Filter: ");
+  Serial.println(filter);
 
   return i;
 }
@@ -177,4 +173,26 @@ readFav(fs::FS& fs, const char* path) {
 
   Serial.print(fav_list_size);
   Serial.println(" favs read.");
+}
+
+
+bool
+initFiles(const char* password) {
+  xxtea.setKey(password);
+
+  if (!SD.begin(SDCARD_SS_PIN, SDCARD_SPI, 4000000UL)) {
+    Serial.println("Card mount failed");
+    return false;
+  }
+
+  uint8_t card_type = SD.cardType();
+  if (card_type == CARD_NONE) {
+    Serial.println("No SD card attached");
+    return false;
+  }
+
+  readFile(SD, "/crypted.txt");
+  readFav(SD, "/fav.txt");
+
+  return true;
 }
