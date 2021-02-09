@@ -9,4 +9,4 @@
 bool initFiles(const char* password);
 void writeFav(fs::FS& fs, const char* path);
 void readFav(fs::FS& fs, const char* path);
-void writeFile(fs::FS& fs, const char* path, Entry newent);
+void writeFile(fs::FS& fs, const char* path, Entry* newent);

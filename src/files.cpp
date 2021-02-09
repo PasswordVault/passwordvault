@@ -134,13 +134,14 @@ readFile(fs::FS& fs, const char* path) {
 
 void
 writeLine(File file, Entry* entry) {
-  file.print(entry->name);
-  file.print("\t");
-  file.println(xxtea.encrypt(entry->passwd).c_str());
+  file.write(entry->name);
+  file.write("\t");
+  file.write(xxtea.encrypt(entry->passwd).c_str());
+  file.write("\n");
 }
 
 void
-writeFile(fs::FS& fs, const char* path, Entry newent) {
+writeFile(fs::FS& fs, const char* path, Entry* newent) {
   Serial.print("Writing file: ");
   Serial.println(path);
   File file = fs.open(path, FILE_WRITE);
@@ -151,29 +152,37 @@ writeFile(fs::FS& fs, const char* path, Entry newent) {
 
   bool written = false;
   for (unsigned int i = 0; i < list_size; i++) {
-    if (0 > strcmp(newent.name, entries[i].name)) {
-      writeLine(file, &newent);
+    if (0 > strcmp(newent->name, entries[i].name)) {
+      writeLine(file, newent);
       written = true;
     }
     writeLine(file, &entries[i]);
   }
   if (!written) {
-    writeLine(file, &newent);
+    writeLine(file, newent);
   }
   file.close();
+  Serial.println("Done.");
 }
 
 
 void
 writeFav(fs::FS& fs, const char* path) {
   Serial.print("Writing fav: ");
-  Serial.println(path);
-  File file = fs.open(path, "w");
+  Serial.print(path);
+  Serial.print(", size: ");
+  Serial.println(fav_list_size);
+  File file = fs.open(path, FILE_WRITE);
+  Serial.println("opened");
   if (!file) {
     Serial.println("Failed to open file for writing");
     return;
   }
-  for (unsigned int i = 0; i < fav_list_size; i ++) {
+  Serial.println("Start");
+  for (unsigned int i = 0; i < fav_list_size; i++) {
+    Serial.print(i);
+    Serial.print(": ");
+    Serial.println(fav_entries[i]->name);
     file.write(fav_entries[i]->name);
     file.write("\n");
   }
