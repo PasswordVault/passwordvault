@@ -4,7 +4,7 @@
 */
 #include <Arduino.h> // for platformio
 
-#define CODE_VERSION "v1.8"
+#define CODE_VERSION "v1.11"
 
 #include <xxtea-lib.h>
 
@@ -18,8 +18,6 @@
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite display = TFT_eSprite(&tft);
-
-const char* PASSWD;
 
 int strncasecmp(const char*, const char*, int);
 char* strdup(const char*);
@@ -48,6 +46,8 @@ typedef struct {
 
 Entry* entries;
 char* buffer;
+#define MINIBUF_LEN 11
+char minibuf[11];
 
 Entry** filtered_entries;
 Entry** fav_entries;
@@ -244,11 +244,6 @@ setup() {
   Serial.begin(115200);
   //while (!Serial);
 
-# include "./env.h"
-  ; 
-
-  xxtea.setKey(PASSWD);
-
   tft.init();
   tft.setRotation(2);
   tft.fillScreen(TFT_BLACK);
@@ -275,8 +270,7 @@ setup() {
   Serial.print("PasswordVault ");
   Serial.println(CODE_VERSION);
 
-  readFile(SD, "/crypted.txt");
-  readFav(SD, "/fav.txt");
+  buffer = minibuf;
   buffer[0] = '\0';
 }
 
@@ -489,6 +483,14 @@ getButtons() {
 
 
 void
+loadFiles(char* password) {
+  xxtea.setKey(password);
+  readFile(SD, "/crypted.txt");
+  readFav(SD, "/fav.txt");
+}
+
+
+void
 lockCursor() {
   int i;
   int buffer_len;
@@ -530,20 +532,16 @@ lockCursor() {
           break;
 
         case '>':
-          if (0 == strcmp(PASSWD, buffer)) {
-            Serial.println("Unlocked :)");
-            mode = MODE_FILTER;
-            buffer[0] = '\0';
-            cursor_x = 0;
-            cursor_y = 0;
-          }
-          else {
-            buffer[0] = '\0';
-          }
+          Serial.println("Unlocked :)");
+          loadFiles(buffer);
+          mode = MODE_FILTER;
+          buffer[0] = '\0';
+          cursor_x = 0;
+          cursor_y = 0;
           break;
 
         default:
-          if (buffer_len > 7) {
+          if (buffer_len >= MINIBUF_LEN - 1) {
             break;
           }
           buffer[buffer_len] = lock[i];
