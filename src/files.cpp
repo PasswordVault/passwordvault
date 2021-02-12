@@ -16,14 +16,15 @@ extern Entry** filtered_entries;
 extern Entry** fav_entries;
 extern unsigned int fav_list_size;
 
+char* strdup(const char*);
 
 int
 countLines(File file, unsigned int* line_length) {
-  int i = 0;
-  int l = 0;
-  int c;
-  int k;
-  int first_field = 1;
+  unsigned int i = 0;
+  unsigned int l = 0;
+  unsigned int c;
+  unsigned int k;
+  bool first_field = true;
   char filter_tmp[FILTER_SIZE];
 
   *line_length = 0;
@@ -33,7 +34,7 @@ countLines(File file, unsigned int* line_length) {
   while (file.available()) {
     if ((c = file.read()) == '\n') {
       i++;
-      first_field = 1;
+      first_field = true;
 
       if (l > *line_length) {
         *line_length = l;
@@ -42,7 +43,7 @@ countLines(File file, unsigned int* line_length) {
     }
     else {
       if (c == '\t') {
-        first_field = 0;
+        first_field = false;
       }
       if (first_field) {
         filter_tmp[tolower(c)] = 1;
@@ -64,7 +65,9 @@ countLines(File file, unsigned int* line_length) {
   }
   filter[k] = '\0';
   Serial.print("Filter: ");
-  Serial.println(filter);
+  Serial.print(filter);
+  Serial.print(", line_length: ");
+  Serial.println(*line_length);
 
   return i;
 }
@@ -75,6 +78,7 @@ readField(File file) {
   char c;
   int pos = 0;
   while (file.available() && (c = file.read()) != '\t' && c != '\n') {
+    Serial.println(pos);
     buffer[pos++] = c;
   }
   buffer[pos] = '\0';
@@ -90,12 +94,12 @@ readLine(File file, Entry* entry) {
 
 
 void
-readFile(fs::FS& fs, const char* path) {
+readFile(const char* path) {
   int i = 0;
 
   Serial.print("Reading file: ");
   Serial.println(path);
-  File file = fs.open(path);
+  File file = SD.open(path);
   if (!file) {
     Serial.println("Failed to open file for reading");
     return;
@@ -106,9 +110,11 @@ readFile(fs::FS& fs, const char* path) {
   Serial.println(list_size);
 
   if (buffer) {
+    Serial.println("Freeing buffer");
     free(buffer);
   }
   if (entries) {
+    Serial.println("Freeing entries");
     for (unsigned int i = 0; i < list_size; i++) {
       free(entries[i].name);
       free(entries[i].passwd);
@@ -119,14 +125,32 @@ readFile(fs::FS& fs, const char* path) {
   }
 
   buffer = (char*)malloc(line_length + 1);
+  if (!buffer) {
+    Serial.println("Can't allocate buffer");
+    return;
+  }
   entries = (Entry*)malloc(sizeof(Entry) * list_size);
+  if (!entries) {
+    Serial.println("Can't allocate entries");
+    return;
+  }
   filtered_entries = (Entry**)malloc(sizeof(Entry*) * list_size);
+  if (!filtered_entries) {
+    Serial.println("Can't allocate filtered_entries");
+    return;
+  }
   fav_entries = (Entry**)malloc(sizeof(Entry*) * list_size);
+  if (!fav_entries) {
+    Serial.println("Can't allocate fav_entries");
+    return;
+  }
 
+  Serial.println("Reading...");
   while (file.available()) {
     readLine(file, &entries[i]);
     i++;
   }
+  Serial.println("Done reading");
   file.close();
 
   Serial.println("Done.");
@@ -141,10 +165,10 @@ writeLine(File file, Entry* entry) {
 }
 
 void
-writeFile(fs::FS& fs, const char* path, Entry* newent) {
+writeFile(const char* path, Entry* newent) {
   Serial.print("Writing file: ");
   Serial.println(path);
-  File file = fs.open(path, FILE_WRITE);
+  File file = SD.open(path, FILE_WRITE);
   if (!file) {
     Serial.println("Failed to open file for writing");
     return;
@@ -165,14 +189,27 @@ writeFile(fs::FS& fs, const char* path, Entry* newent) {
   Serial.println("Done.");
 }
 
+class MyFS: public fs::SDFS {
+  public:
+    MyFS(fs::FS src) {
+      memmove(this, &src, sizeof(fs::FS));
+    }
+    int getID() { return this->rootSD.id; }
+};
+
 
 void
-writeFav(fs::FS& fs, const char* path) {
+writeFav(const char* path) {
   Serial.print("Writing fav: ");
   Serial.print(path);
   Serial.print(", size: ");
-  Serial.println(fav_list_size);
-  File file = fs.open(path, FILE_WRITE);
+  Serial.print(fav_list_size);
+  Serial.print(", fs: ");
+  Serial.print(((MyFS)SD).getID(), HEX);
+  Serial.print(", type: ");
+  Serial.print(SD.cardType());  
+  Serial.println("");
+  File file = SD.open(path, FILE_WRITE);
   Serial.println("opened");
   if (!file) {
     Serial.println("Failed to open file for writing");
@@ -192,13 +229,13 @@ writeFav(fs::FS& fs, const char* path) {
 
 
 void
-readFav(fs::FS& fs, const char* path) {
+readFav(const char* path) {
   char* name;
   bool found;
 
   Serial.print("Reading fav: ");
   Serial.println(path);
-  File file = fs.open(path);
+  File file = SD.open(path, FILE_READ);
   if (!file) {
     Serial.println("Failed to open file for reading");
     return;
@@ -244,8 +281,14 @@ initFiles(const char* password) {
     return false;
   }
 
-  readFile(SD, "/crypted.txt");
-  readFav(SD, "/fav.txt");
+  Serial.print("SD: ");
+  Serial.print(MyFS(SD).getID(), HEX);
+  Serial.print(", type: ");
+  Serial.print(SD.cardType());  
+  Serial.println("");
+
+  readFile("/crypted.txt");
+  readFav("/fav.txt");
 
   return true;
 }

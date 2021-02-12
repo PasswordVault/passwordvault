@@ -81,7 +81,7 @@ GenController::update() {
     entry.name = strdup(buffer);
     entry.passwd = strdup(password);
     //favEntry(&entry);
-    writeFile(SD, "/crypted2.txt", &entry);
+    writeFile("/crypted2.txt", &entry);
     initFiles(PASSWD);
 
     Serial.println("Saved.");

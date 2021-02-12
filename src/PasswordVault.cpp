@@ -207,7 +207,7 @@ favEntry(Entry* entry) {
   fav_entries[0] = entry;
   if (grow) {
     fav_list_size++;
-    writeFav(SD, "/fav.txt");
+    writeFav("/fav.txt");
   }
 }
 

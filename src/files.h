@@ -7,6 +7,6 @@
 #define FILTER_SIZE 256
 
 bool initFiles(const char* password);
-void writeFav(fs::FS& fs, const char* path);
-void readFav(fs::FS& fs, const char* path);
-void writeFile(fs::FS& fs, const char* path, Entry* newent);
+void writeFav(const char* path);
+void readFav(const char* path);
+void writeFile(const char* path, Entry* newent);
