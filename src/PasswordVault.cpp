@@ -328,14 +328,14 @@ filterEntries() {
 
 void
 about() {
-  const int OVERLAY_Y = 220;
+  const int OVERLAY_Y = 230;
   display.setTextColor(TFT_YELLOW, TFT_BLACK);
   display.setFreeFont(ABOUT_FONT);
   display.drawCentreString("PasswordVault", DISPLAY_WIDTH / 2, OVERLAY_Y, 1);
   display.setFreeFont(ABOUT_SMALL_FONT);
-  display.drawCentreString(CODE_VERSION, DISPLAY_WIDTH / 2, OVERLAY_Y + 40, 1);
-  display.drawCentreString("(c) 2021 Olav Schettler", DISPLAY_WIDTH / 2, OVERLAY_Y + 56, 1);
-  display.drawCentreString("info@passwordvault.de", DISPLAY_WIDTH / 2, OVERLAY_Y + 72, 1);  
+  display.drawCentreString(CODE_VERSION, DISPLAY_WIDTH / 2, OVERLAY_Y + 24, 1);
+  display.drawCentreString("(c) 2021 Olav Schettler", DISPLAY_WIDTH / 2, OVERLAY_Y + 46, 1);
+  display.drawCentreString("info@passwordvault.de", DISPLAY_WIDTH / 2, OVERLAY_Y + 64, 1);  
 }
 
 
@@ -358,7 +358,7 @@ showFilter() {
   filtered_list_size = filterEntries();
 
   display.setFreeFont(LIST_FONT);
-  display.setCursor(20, 100 + entry.key_lines * 20);
+  display.setCursor(20, 90 + entry.key_lines * 22);
   display.print(filtered_list_size);
   display.print(" passwords");
 
