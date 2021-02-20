@@ -256,7 +256,8 @@ setMode(unsigned int _mode) {
   }
   mode = _mode;
   Serial.print("setMode: ");
-  Serial.println(mode);
+  Serial.print(mode);
+  Serial.println(" ---------------------");
 }
 
 
