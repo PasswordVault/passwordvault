@@ -27,6 +27,7 @@ TextEntry::setup(
   this->x_offs = DISPLAY_WIDTH / 2 - 10 * this->width;
   this->next_mode = next_mode;
   this->key_len = strlen(keys);
+  this->key_lines = ceil(this->key_len / (float)this->width);
   this->cursor_x = this->cursor_y = 0;
 }
 
@@ -63,9 +64,7 @@ TextEntry::show() {
     }
   }
   display.setTextColor(TFT_WHITE, TFT_BLACK);
-  display.drawFastHLine(0, 70 + y * 20, DISPLAY_WIDTH, TFT_WHITE);
-
-  this->key_lines = y;
+  display.drawFastHLine(0, 70 + this->key_lines * 20, DISPLAY_WIDTH, TFT_WHITE);
 }
 
 void

@@ -35,6 +35,7 @@ typedef struct {
 
 Entry* entries;
 char* buffer = NULL;
+unsigned int line_length;
 char minibuf[MINIBUF_LENGTH];
 
 Entry** filtered_entries;
@@ -44,7 +45,6 @@ Entry* current_entry;
 TextEntry entry;
 
 char filter[FILTER_LENGTH];
-unsigned int filter_lines;
 unsigned int filter_size = 0;
 
 char lock[] = "123456789<0>";
@@ -57,10 +57,10 @@ unsigned int cursor = 0;
 unsigned int prefix_pos = 0;
 
 
-int
-countLines(File file, int* line_length) {
+unsigned int
+countLines(File file, unsigned int* line_length) {
   int i = 0;
-  int l = 0;
+  unsigned int l = 0;
   int c;
   int k;
   int first_field = 1;
@@ -130,7 +130,6 @@ readLine(File file, Entry* entry) {
 void
 readFile(fs::FS& fs, const char* path) {
   int i = 0;
-  int line_length;
 
   Serial.print("Reading file: ");
   Serial.println(path);
@@ -230,12 +229,15 @@ setupJoystick() {
 void
 setMode(unsigned int _mode) {
   switch (_mode) {
+    case MODE_UNLOCKED:
+      break;
+
     case MODE_FILTER:
-      if (buffer) {
-        buffer[0] = '\0';
-      }
-      cursor_x = 0;
-      cursor_y = 0;
+      entry.setup(
+        buffer, line_length + 1, 
+        ">", 
+        filter, FILTER_WIDTH
+      );
       break;
 
     case MODE_LIST:
@@ -249,7 +251,7 @@ setMode(unsigned int _mode) {
         minibuf, MINIBUF_LENGTH, 
         ">", 
         lock, LOCK_WIDTH, 
-        MODE_FILTER
+        MODE_UNLOCKED
       );
       break;
 
@@ -341,39 +343,8 @@ void
 showLock() {
   entry.show();
 
-/*
-  unsigned int x = 0, y = 0;
-
-  display.fillScreen(TFT_BLACK);
-  display.setFreeFont(PROMPT_FONT);
-  display.setTextColor(TFT_WHITE, TFT_BLACK);
-
-  display.drawString(">", 20, 10);
-  display.drawString(buffer, 40, 10);
-
-  display.drawFastHLine(0, 30, DISPLAY_WIDTH, TFT_WHITE);
-
-  for (unsigned int i = 0; i < sizeof(lock); i++) {
-    char c[2] = { lock[i], '\0' };
-    if (x == cursor_x && y == cursor_y) {
-      display.setTextColor(TFT_BLACK, TFT_WHITE);
-    }
-    else {
-      display.setTextColor(TFT_WHITE, TFT_BLACK);
-    }
-    display.drawString(c, 90 + x * 20, 50 + y * 20);
-    x++;
-    if (x >= LOCK_WIDTH) {
-      x = 0;
-      y++;
-    }
-  }
-
-  display.drawFastHLine(0, 150, 240, TFT_WHITE);
-*/
-
   display.setFreeFont(ABOUT_FONT);
-  display.drawCentreString("Please unlock", DISPLAY_WIDTH / 2, 160, 1);
+  display.drawCentreString("Please unlock", DISPLAY_WIDTH / 2, 170, 1);
 
   about();
 
@@ -383,39 +354,11 @@ showLock() {
 
 void
 showFilter() {
-  unsigned int x = 0, y = 0;
-
-  display.fillScreen(TFT_BLACK);
-  display.setFreeFont(PROMPT_FONT);
-  display.setTextColor(TFT_WHITE, TFT_BLACK);
-
-  display.drawString(">", 20, 10);
-  display.drawString(buffer, 40, 10);
-
-  display.drawFastHLine(0, 30, DISPLAY_WIDTH, TFT_WHITE);
-
-  for (unsigned int i = 0; i < filter_size; i++) {
-    char c[2] = { filter[i], '\0' };
-    if (x == cursor_x && y == cursor_y) {
-      display.setTextColor(TFT_BLACK, TFT_WHITE);
-    }
-    else {
-      display.setTextColor(TFT_WHITE, TFT_BLACK);
-    }
-    display.drawString(c, 20 + x * 20, 50 + y * 20);
-    x++;
-    if (x >= FILTER_WIDTH) {
-      x = 0;
-      y++;
-    }
-  }
-  filter_lines = y;
-
+  entry.show();
   filtered_list_size = filterEntries();
 
-  display.drawFastHLine(0, 80 + filter_lines * 20, DISPLAY_WIDTH, TFT_WHITE);
   display.setFreeFont(LIST_FONT);
-  display.setCursor(20, 100 + filter_lines * 20);
+  display.setCursor(20, 100 + entry.key_lines * 20);
   display.print(filtered_list_size);
   display.print(" passwords");
 
@@ -528,66 +471,23 @@ loadFiles(char* password) {
 void
 lockCursor() {
   entry.update();
-  if (mode == MODE_FILTER) {
+  if (mode == MODE_UNLOCKED) {
     Serial.println("Unlocked :)");
+    
+    display.fillScreen(TFT_BLACK);
+    display.setFreeFont(ABOUT_FONT);
+    display.setTextColor(TFT_WHITE, TFT_BLACK);
+    display.drawCentreString("Loading ...", DISPLAY_WIDTH / 2, 150, 1);
+    display.pushSprite(0, 0);
+
     loadFiles(minibuf);
-    buffer[0] = '\0';
+    setMode(MODE_FILTER);
   }
 }
 
 void
 filterCursor() {
-  unsigned int i, new_i;
-  unsigned int buffer_len;
-  int cmd = getButtons();
-
-  switch (cmd) {
-    case LEFT:
-      if (cursor_x > 0) {
-        cursor_x--;
-      }
-      break;
-
-    case RIGHT:
-      new_i = cursor_y * FILTER_WIDTH + cursor_x + 1;
-      if (cursor_x < FILTER_WIDTH - 1 && new_i < filter_size - 1) {
-        cursor_x++;
-      }
-      break;
-
-    case UP:
-      if (cursor_y > 0) {
-        cursor_y--;
-      }
-      break;
-
-    case DOWN:
-      new_i = (cursor_y + 1) * FILTER_WIDTH + cursor_x;
-      if (cursor_y < filter_lines && new_i < filter_size) {
-        cursor_y++;
-      }
-      break;
-
-    case SELECT:
-      i = cursor_y * FILTER_WIDTH + cursor_x;
-      buffer_len = strlen(buffer);
-      buffer[buffer_len] = filter[i];
-      buffer[buffer_len + 1] = '\0';
-      break;
-
-    case MODE_FAV:
-    case MODE_LIST:
-    case MODE_FILTER:
-      setMode(cmd);
-      break;
-  }
-  i = cursor_y * FILTER_WIDTH + cursor_x;
-  Serial.print("Filter [");
-  Serial.print(i);
-  Serial.print("] = ");
-  Serial.print(filter[i]);
-  Serial.print(", filter size: ");
-  Serial.println(filter_size);
+  entry.update();
 }
 
 
