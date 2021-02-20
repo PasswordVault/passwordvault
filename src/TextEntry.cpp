@@ -56,7 +56,7 @@ TextEntry::show() {
     else {
       display.setTextColor(TFT_WHITE, TFT_BLACK);
     }
-    display.drawString(c, this->x_offs + x * 20, 50 + y * 20);
+    display.drawString(c, this->x_offs + x * 20, 50 + y * 22);
     x++;
     if (x >= this->width) {
       x = 0;
