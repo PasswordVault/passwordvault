@@ -239,6 +239,8 @@ setup() {
   display.setColorDepth(8);
   display.createSprite(240, 320);
   display.fillSprite(TFT_BLACK);
+  display.setTextSize(1);
+  display.setFreeFont(LIST_FONT);
 
   setupJoystick();
 
@@ -285,9 +287,9 @@ void
 about() {
   const int OVERLAY_Y = 220;
   display.setTextColor(TFT_YELLOW, TFT_BLACK);
-  display.setTextSize(2);
-  display.drawCentreString("PasswordVault", 120, OVERLAY_Y, 2);
-  display.setTextSize(1);
+  display.setFreeFont(ABOUT_FONT);
+  display.drawCentreString("PasswordVault", 120, OVERLAY_Y, 1);
+  display.setFreeFont(ABOUT_SMALL_FONT);
   display.drawCentreString(CODE_VERSION, 120, OVERLAY_Y + 40, 1);
   display.drawCentreString("(c) 2021 Olav Schettler", 120, OVERLAY_Y + 56, 1);
   display.drawCentreString("info@passwordvault.de", 120, OVERLAY_Y + 72, 1);  
@@ -299,7 +301,7 @@ showLock() {
   unsigned int x = 0, y = 0;
 
   display.fillScreen(TFT_BLACK);
-  display.setTextSize(2);
+  display.setFreeFont(PROMPT_FONT);
   display.setTextColor(TFT_WHITE, TFT_BLACK);
 
   display.drawString(">", 20, 10);
@@ -324,6 +326,7 @@ showLock() {
   }
 
   display.drawFastHLine(0, 150, 240, TFT_WHITE);
+  display.setFreeFont(ABOUT_FONT);
   display.drawCentreString("Please unlock", 120, 160, 1);
 
   about();
@@ -337,7 +340,7 @@ showFilter() {
   unsigned int x = 0, y = 0;
 
   display.fillScreen(TFT_BLACK);
-  display.setTextSize(2);
+  display.setFreeFont(PROMPT_FONT);
   display.setTextColor(TFT_WHITE, TFT_BLACK);
 
   display.drawString(">", 20, 10);
@@ -365,7 +368,7 @@ showFilter() {
   filtered_list_size = filterEntries();
 
   display.drawFastHLine(0, 80 + filter_lines * 20, 240, TFT_WHITE);
-
+  display.setFreeFont(LIST_FONT);
   display.setCursor(20, 100 + filter_lines * 20);
   display.print(filtered_list_size);
   display.print(" passwords");
@@ -384,13 +387,14 @@ showList() {
   Serial.println(cursor);
 
   display.fillScreen(TFT_BLACK);
-  display.setTextSize(2);
+  display.setFreeFont(PROMPT_FONT);
   display.setTextColor(TFT_WHITE, TFT_BLACK);
 
   display.drawString("#", 20, 10);
   display.drawString(buffer, 40, 10);
 
   display.drawFastHLine(0, 30, 240, TFT_WHITE);
+  display.setFreeFont(LIST_FONT);
 
   for (unsigned int i = 0; offset + i < filtered_list_size && i < SCREEN_SIZE; i++) {
     if (i == cursor) {
@@ -529,7 +533,7 @@ lockCursor() {
           break;
 
         default:
-          if (buffer_len >= MINIBUF_LEN - 1) {
+          if (buffer_len >= MINIBUF_LENGTH - 1) {
             break;
           }
           buffer[buffer_len] = lock[i];
@@ -688,13 +692,14 @@ class FavController {
       Serial.println(this->list_size);
 
       display.fillScreen(TFT_BLACK);
-      display.setTextSize(2);
+      display.setFreeFont(PROMPT_FONT);
       display.setTextColor(TFT_WHITE, TFT_BLACK);
 
       display.drawString("*", 20, 10);
       display.drawString(buffer, 40, 10);
 
       display.drawFastHLine(0, 30, 240, TFT_WHITE);
+      display.setFreeFont(LIST_FONT);
 
       if (this->list_size > 0) {
         for (unsigned int i = 0; offset + i < this->list_size && i < SCREEN_SIZE; i++) {
@@ -711,7 +716,7 @@ class FavController {
       }
       else {
         display.setTextColor(TFT_YELLOW, TFT_BLACK);
-        display.setTextSize(2);
+        display.setFreeFont(ABOUT_FONT);
         display.drawCentreString("No favorites yet", 120, 160, 1);
       }
       display.pushSprite(0, 0);
