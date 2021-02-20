@@ -34,12 +34,14 @@ typedef struct {
 } Entry;
 
 Entry* entries;
-char* buffer;
+char* buffer = NULL;
 char minibuf[MINIBUF_LENGTH];
 
 Entry** filtered_entries;
 Entry** fav_entries;
 Entry* current_entry;
+
+TextEntry entry;
 
 char filter[FILTER_LENGTH];
 unsigned int filter_lines;
@@ -229,7 +231,9 @@ void
 setMode(unsigned int _mode) {
   switch (_mode) {
     case MODE_FILTER:
-      buffer[0] = '\0';
+      if (buffer) {
+        buffer[0] = '\0';
+      }
       cursor_x = 0;
       cursor_y = 0;
       break;
@@ -241,8 +245,12 @@ setMode(unsigned int _mode) {
       break;
 
     case MODE_LOCK:
-      buffer = minibuf;
-      buffer[0] = '\0';
+      entry.setup(
+        minibuf, MINIBUF_LENGTH, 
+        ">", 
+        lock, LOCK_WIDTH, 
+        MODE_FILTER
+      );
       break;
 
     case MODE_DETAIL:
@@ -271,7 +279,7 @@ setup() {
   tft.fillScreen(TFT_BLACK);
 
   display.setColorDepth(8);
-  display.createSprite(240, 320);
+  display.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
   display.fillSprite(TFT_BLACK);
   display.setTextSize(1);
   display.setFreeFont(LIST_FONT);
@@ -321,16 +329,19 @@ about() {
   const int OVERLAY_Y = 220;
   display.setTextColor(TFT_YELLOW, TFT_BLACK);
   display.setFreeFont(ABOUT_FONT);
-  display.drawCentreString("PasswordVault", 120, OVERLAY_Y, 1);
+  display.drawCentreString("PasswordVault", DISPLAY_WIDTH / 2, OVERLAY_Y, 1);
   display.setFreeFont(ABOUT_SMALL_FONT);
-  display.drawCentreString(CODE_VERSION, 120, OVERLAY_Y + 40, 1);
-  display.drawCentreString("(c) 2021 Olav Schettler", 120, OVERLAY_Y + 56, 1);
-  display.drawCentreString("info@passwordvault.de", 120, OVERLAY_Y + 72, 1);  
+  display.drawCentreString(CODE_VERSION, DISPLAY_WIDTH / 2, OVERLAY_Y + 40, 1);
+  display.drawCentreString("(c) 2021 Olav Schettler", DISPLAY_WIDTH / 2, OVERLAY_Y + 56, 1);
+  display.drawCentreString("info@passwordvault.de", DISPLAY_WIDTH / 2, OVERLAY_Y + 72, 1);  
 }
 
 
 void
 showLock() {
+  entry.show();
+
+/*
   unsigned int x = 0, y = 0;
 
   display.fillScreen(TFT_BLACK);
@@ -340,7 +351,7 @@ showLock() {
   display.drawString(">", 20, 10);
   display.drawString(buffer, 40, 10);
 
-  display.drawFastHLine(0, 30, 240, TFT_WHITE);
+  display.drawFastHLine(0, 30, DISPLAY_WIDTH, TFT_WHITE);
 
   for (unsigned int i = 0; i < sizeof(lock); i++) {
     char c[2] = { lock[i], '\0' };
@@ -359,8 +370,10 @@ showLock() {
   }
 
   display.drawFastHLine(0, 150, 240, TFT_WHITE);
+*/
+
   display.setFreeFont(ABOUT_FONT);
-  display.drawCentreString("Please unlock", 120, 160, 1);
+  display.drawCentreString("Please unlock", DISPLAY_WIDTH / 2, 160, 1);
 
   about();
 
@@ -379,7 +392,7 @@ showFilter() {
   display.drawString(">", 20, 10);
   display.drawString(buffer, 40, 10);
 
-  display.drawFastHLine(0, 30, 240, TFT_WHITE);
+  display.drawFastHLine(0, 30, DISPLAY_WIDTH, TFT_WHITE);
 
   for (unsigned int i = 0; i < filter_size; i++) {
     char c[2] = { filter[i], '\0' };
@@ -400,7 +413,7 @@ showFilter() {
 
   filtered_list_size = filterEntries();
 
-  display.drawFastHLine(0, 80 + filter_lines * 20, 240, TFT_WHITE);
+  display.drawFastHLine(0, 80 + filter_lines * 20, DISPLAY_WIDTH, TFT_WHITE);
   display.setFreeFont(LIST_FONT);
   display.setCursor(20, 100 + filter_lines * 20);
   display.print(filtered_list_size);
@@ -426,7 +439,7 @@ showList() {
   display.drawString("#", 20, 10);
   display.drawString(buffer, 40, 10);
 
-  display.drawFastHLine(0, 30, 240, TFT_WHITE);
+  display.drawFastHLine(0, 30, DISPLAY_WIDTH, TFT_WHITE);
   display.setFreeFont(LIST_FONT);
 
   for (unsigned int i = 0; offset + i < filtered_list_size && i < SCREEN_SIZE; i++) {
@@ -514,59 +527,11 @@ loadFiles(char* password) {
 
 void
 lockCursor() {
-  int i;
-  int buffer_len;
-  int cmd = getButtons();
-
-  switch (cmd) {
-    case LEFT:
-      if (cursor_x > 0) {
-        cursor_x--;
-      }
-      break;
-
-    case RIGHT:
-      if (cursor_x < LOCK_WIDTH - 1) {
-        cursor_x++;
-      }
-      break;
-
-    case UP:
-      if (cursor_y > 0) {
-        cursor_y--;
-      }
-      break;
-
-    case DOWN:
-      if (cursor_y < sizeof(lock) / LOCK_WIDTH - 1) {
-        cursor_y++;
-      }
-      break;
-
-    case SELECT:
-      i = cursor_y * LOCK_WIDTH + cursor_x;
-      buffer_len = strlen(buffer);
-      switch (lock[i]) {
-        case '<':
-          if (buffer_len > 0) {
-            buffer[buffer_len - 1] = '\0';
-          }
-          break;
-
-        case '>':
-          Serial.println("Unlocked :)");
-          loadFiles(buffer);
-          setMode(MODE_FILTER);
-          break;
-
-        default:
-          if (buffer_len >= MINIBUF_LENGTH - 1) {
-            break;
-          }
-          buffer[buffer_len] = lock[i];
-          buffer[buffer_len + 1] = '\0';
-      }
-      break;
+  entry.update();
+  if (mode == MODE_FILTER) {
+    Serial.println("Unlocked :)");
+    loadFiles(minibuf);
+    buffer[0] = '\0';
   }
 }
 
@@ -725,7 +690,7 @@ class FavController {
       display.drawString("*", 20, 10);
       display.drawString(buffer, 40, 10);
 
-      display.drawFastHLine(0, 30, 240, TFT_WHITE);
+      display.drawFastHLine(0, 30, DISPLAY_WIDTH, TFT_WHITE);
       display.setFreeFont(LIST_FONT);
 
       if (this->list_size > 0) {
@@ -744,7 +709,7 @@ class FavController {
       else {
         display.setTextColor(TFT_YELLOW, TFT_BLACK);
         display.setFreeFont(ABOUT_FONT);
-        display.drawCentreString("No favorites yet", 120, 160, 1);
+        display.drawCentreString("No favorites yet", DISPLAY_WIDTH / 2, 160, 1);
       }
       display.pushSprite(0, 0);
     }
@@ -801,7 +766,7 @@ class DetailController {
       display.drawString(":", 20, 10);
       display.drawString(current_entry->name, 40, 10);
 
-      display.drawFastHLine(0, 30, 240, TFT_WHITE);
+      display.drawFastHLine(0, 30, DISPLAY_WIDTH, TFT_WHITE);
       display.setFreeFont(ABOUT_FONT);
 
       display.drawString(current_entry->passwd, 20, 50);
