@@ -4,8 +4,6 @@
 */
 #include <Arduino.h> // for platformio
 
-#define CODE_VERSION "v1.11"
-
 #include <xxtea-lib.h>
 
 #include <SPI.h>
@@ -16,25 +14,18 @@
 #include <Seeed_FS.h>
 #include "SD/Seeed_SD.h"
 
+#include "Free_Fonts.h"
+
+#include "constants.h"
+
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite display = TFT_eSprite(&tft);
 
 int strncasecmp(const char*, const char*, int);
 char* strdup(const char*);
 
-#define UP 1
-#define DOWN 2
-#define LEFT 3
-#define RIGHT 4
-#define SELECT 5
-#define MODE_FILTER 6
-#define MODE_LIST 7
-#define MODE_LOCK 8
-#define MODE_FAV 9
-#define MODE_DETAIL 10
 int mode = MODE_LOCK;
 
-#define SCREEN_SIZE 13
 unsigned int list_size;
 unsigned int filtered_list_size;
 unsigned int fav_list_size = 0;
@@ -46,16 +37,13 @@ typedef struct {
 
 Entry* entries;
 char* buffer;
-#define MINIBUF_LEN 11
-char minibuf[11];
+char minibuf[MINIBUF_LENGTH];
 
 Entry** filtered_entries;
 Entry** fav_entries;
 Entry* current_entry;
 
-#define FILTER_SIZE 256
-char filter[FILTER_SIZE];
-#define FILTER_WIDTH 10
+char filter[FILTER_LENGTH];
 unsigned int filter_lines;
 unsigned int filter_size = 0;
 
@@ -76,11 +64,11 @@ countLines(File file, int* line_length) {
   int c;
   int k;
   int first_field = 1;
-  char filter_tmp[FILTER_SIZE];
+  char filter_tmp[FILTER_LENGTH];
 
   *line_length = 0;
 
-  memset(filter_tmp, 0, FILTER_SIZE);
+  memset(filter_tmp, 0, FILTER_LENGTH);
 
   while (file.available()) {
     if ((c = file.read()) == '\n') {
@@ -108,8 +96,8 @@ countLines(File file, int* line_length) {
     *line_length = l;
   }
 
-  memset(filter, 0, FILTER_SIZE);
-  for (c = 0, k = 0; c < FILTER_SIZE; c++) {
+  memset(filter, 0, FILTER_LENGTH);
+  for (c = 0, k = 0; c < FILTER_LENGTH; c++) {
     if (filter_tmp[c]) {
       filter[k++] = c;
     }
