@@ -14,9 +14,7 @@
 #include <Seeed_FS.h>
 #include "SD/Seeed_SD.h"
 
-#include "Free_Fonts.h"
-
-#include "constants.h"
+#include "controllers.h"
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite display = TFT_eSprite(&tft);
@@ -24,7 +22,7 @@ TFT_eSprite display = TFT_eSprite(&tft);
 int strncasecmp(const char*, const char*, int);
 char* strdup(const char*);
 
-int mode = MODE_LOCK;
+int mode;
 
 unsigned int list_size;
 unsigned int filtered_list_size;
@@ -228,6 +226,41 @@ setupJoystick() {
 
 
 void
+setMode(unsigned int _mode) {
+  switch (_mode) {
+    case MODE_FILTER:
+      buffer[0] = '\0';
+      cursor_x = 0;
+      cursor_y = 0;
+      break;
+
+    case MODE_LIST:
+      break;
+
+    case MODE_FAV:
+      break;
+
+    case MODE_LOCK:
+      buffer = minibuf;
+      buffer[0] = '\0';
+      break;
+
+    case MODE_DETAIL:
+      offset = 0;
+      cursor = 0;
+      break;
+/*
+    case MODE_GENPWD:
+      break;
+*/
+  }
+  mode = _mode;
+  Serial.print("setMode: ");
+  Serial.println(mode);
+}
+
+
+void
 setup() {
   Serial.begin(115200);
   //while (!Serial);
@@ -260,8 +293,7 @@ setup() {
   Serial.print("PasswordVault ");
   Serial.println(CODE_VERSION);
 
-  buffer = minibuf;
-  buffer[0] = '\0';
+  setMode(MODE_LOCK);
 }
 
 
@@ -437,7 +469,6 @@ checkButtons() {
   
     switch (mode) {
       case MODE_LIST:
-        buffer[0] = '\0';
         return MODE_FILTER;
       
       case MODE_FILTER:
@@ -454,8 +485,6 @@ checkButtons() {
       case MODE_DETAIL:
         return MODE_LIST;
     }
-    Serial.print("mode: ");
-    Serial.println(mode);
   }
 
   return 0;
@@ -526,10 +555,7 @@ lockCursor() {
         case '>':
           Serial.println("Unlocked :)");
           loadFiles(buffer);
-          mode = MODE_FILTER;
-          buffer[0] = '\0';
-          cursor_x = 0;
-          cursor_y = 0;
+          setMode(MODE_FILTER);
           break;
 
         default:
@@ -586,7 +612,7 @@ filterCursor() {
     case MODE_FAV:
     case MODE_LIST:
     case MODE_FILTER:
-      mode = cmd;
+      setMode(cmd);
       break;
   }
   i = cursor_y * FILTER_WIDTH + cursor_x;
@@ -660,13 +686,13 @@ listCursor() {
     case SELECT:
       current_entry = filtered_entries[offset + cursor];
       typeAndFavEntry(current_entry);
-      mode = MODE_DETAIL;
+      setMode(MODE_DETAIL);
       break;
 
     case MODE_FAV:
     case MODE_LIST:
     case MODE_FILTER:
-      mode = cmd;
+      setMode(cmd);
       break;
   }
 }
@@ -750,15 +776,13 @@ class FavController {
         case SELECT:
           current_entry = this->entries[offset + cursor];
           typeAndFavEntry(current_entry);
-          mode = MODE_DETAIL;
-          offset = 0;
-          cursor = 0;
+          setMode(MODE_DETAIL);
           break;
 
         case MODE_FAV:
         case MODE_LIST:
         case MODE_FILTER:
-          mode = cmd;
+          setMode(cmd);
           break;
       }
     }
@@ -792,7 +816,7 @@ class DetailController {
         case MODE_FAV:
         case MODE_LIST:
         case MODE_FILTER:
-          mode = cmd;
+          setMode(cmd);
           break;
       }
     }
