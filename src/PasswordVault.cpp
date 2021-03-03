@@ -11,7 +11,6 @@
 
 #include "Keyboard.h"
 
-#include <sfud.h>
 #include <Seeed_FS.h>
 #include "SD/Seeed_SD.h"
 
@@ -39,7 +38,6 @@ uint8_t mode;
 char* buffer = NULL;
 unsigned int line_length;
 char minibuf[MINIBUF_LENGTH];
-char master[MINIBUF_LENGTH];
 
 Entry** filtered_entries;
 Entry** fav_entries;
@@ -282,43 +280,6 @@ setMode(unsigned int _mode) {
 }
 
 
-char*
-readMaster(char* password) {
-  const sfud_flash* flash = sfud_get_device_table() + 0;
-  const uint32_t ADDR = 0; 
-
-  if (SFUD_SUCCESS == sfud_read(flash, ADDR, MINIBUF_LENGTH, (uint8_t*)password)
-    && password[0] != '\0') {
-    Serial.print("p0=");
-    Serial.println((uint8_t)password[0]);
-    return password;
-  }
-  else {
-    return NULL;
-  }    
-}
-
-
-void
-writeMaster(const char* password) {
-  const sfud_flash* flash = sfud_get_device_table() + 0;
-  const uint32_t ADDR = 0;
-  uint8_t len = strlen(password) + 1;
-
-  if (SFUD_SUCCESS != sfud_erase(flash, ADDR, len)) {
-    Serial.println("Could not erase flash");
-    return;
-  }
-  if (SFUD_SUCCESS != sfud_write(flash, ADDR, len, (uint8_t*)password)) {
-    Serial.println("Could not write flash");
-    return;
-  }
-
-  Serial.print("Written: ");
-  Serial.println(readMaster(minibuf));
-}
-
-
 void
 setup() {
   Serial.begin(115200);
@@ -352,21 +313,7 @@ setup() {
   Serial.print("PasswordVault ");
   Serial.println(CODE_VERSION);
 
-  while(!(sfud_init() == SFUD_SUCCESS));
-  sfud_qspi_fast_read_enable(sfud_get_device(SFUD_W25Q32_DEVICE_INDEX), 2);
-
-  char* m = readMaster(minibuf);
-  if (m) {
-    Serial.print("Has master: <");
-    Serial.print(m);
-    Serial.println(">");
-    strncpy(m, master, MINIBUF_LENGTH);
-    setMode(MODE_LOCK);
-  }
-  else {
-    Serial.println("Needs master");
-    setMode(MODE_MASTER);
-  }
+  setMode(MODE_LOCK);
 }
 
 
@@ -750,36 +697,6 @@ class DetailController {
 };
 
 
-class MasterController {
-  public:
-    void
-    show() {
-      entry.show();
-
-      display.setFreeFont(ABOUT_FONT);
-      display.drawCentreString("Define master key", DISPLAY_WIDTH / 2, 170, 1);
-
-      about();
-
-      display.pushSprite(0, 0);
-    }
-
-    void
-    update() {
-      entry.update();
-      if (mode == MODE_UNLOCKED) {
-        Serial.print("Defined master ");
-        Serial.println(minibuf);
-
-        writeMaster(minibuf);
-    
-        loadFiles(minibuf);
-        setMode(MODE_FILTER);
-      }
-    }
-};
-
-
 void
 loop() {
   switch (mode) {
@@ -804,13 +721,6 @@ loop() {
       showLock();
       lockCursor();
       break;
-    
-    case MODE_MASTER: {
-      MasterController ctl = MasterController();
-      ctl.show();
-      ctl.update();
-      break;
-    }
 
     case MODE_DETAIL: {
       DetailController ctl = DetailController();
