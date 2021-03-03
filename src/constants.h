@@ -37,8 +37,9 @@
 #define MODE_FAV 9
 #define MODE_DETAIL 10
 #define MODE_UNLOCKED 11
+#define MODE_MASTER 12
 
 /*
-#define MODE_GENPWD 12
-#define MODE_SAVEPWD 13
+#define MODE_GENPWD 13
+#define MODE_SAVEPWD 14
 */
